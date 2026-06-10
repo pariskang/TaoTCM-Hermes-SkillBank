@@ -12,6 +12,36 @@ def sha1_text(text: str) -> str:
     return "sha1_" + hashlib.sha1(text.encode("utf-8")).hexdigest()
 
 
+def now_iso() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat()
+
+
+def project_root() -> Path:
+    """Locate the repository root that carries schemas/ and prompts/.
+
+    Resolution order: TAOTCM_ROOT env var, then walk up from this file,
+    then the current working directory.
+    """
+    env = os.getenv("TAOTCM_ROOT")
+    if env:
+        return Path(env)
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "schemas").is_dir():
+            return parent
+    return Path.cwd()
+
+
+def schemas_dir() -> Path:
+    return project_root() / "schemas"
+
+
+def prompts_dir() -> Path:
+    return project_root() / "prompts"
+
+
 def ensure_dir(path: str | Path) -> Path:
     p = Path(path)
     p.mkdir(parents=True, exist_ok=True)

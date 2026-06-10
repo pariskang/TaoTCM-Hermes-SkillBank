@@ -22,11 +22,19 @@ def _top_pattern(result: dict[str, Any]) -> str | None:
     return top[0].get("pattern") if top else None
 
 
+def _ranking(result: dict[str, Any]) -> list[tuple[str, str]]:
+    """Comparable ranking signature: (pattern, support_level) pairs only.
+
+    Comparing whole result dicts is meaningless — they echo the input
+    features, so every counterfactual pair would trivially count as
+    "changed" and inflate the pass rate to 1.0.
+    """
+    return [(item.get("pattern", ""), item.get("support_level", "")) for item in result.get("top_k", [])]
+
+
 def run_counterfactual(run_id: str, output_dir: str | Path = "outputs") -> dict[str, Any]:
     cases: list[dict[str, Any]] = []
-    changed_or_blocked = 0
-    hard_stop_consistent = 0
-    hard_stop_checks = 0
+    changed_count = 0
     for left, right in PAIRS:
         left_features = BASE_FEATURES + left.split()
         right_features = BASE_FEATURES + right.split()
@@ -34,21 +42,20 @@ def run_counterfactual(run_id: str, output_dir: str | Path = "outputs") -> dict[
         right_result = run_inference({"mode": "clinician_assist", "features": right_features}, run_id, output_dir)
         left_top = _top_pattern(left_result)
         right_top = _top_pattern(right_result)
-        changed = left_top != right_top or left_result != right_result
+        changed = _ranking(left_result) != _ranking(right_result)
         if changed:
-            changed_or_blocked += 1
-        cases.append({"a": left, "b": right, "top_a": left_top, "top_b": right_top, "changed": changed})
+            changed_count += 1
+        cases.append({"a": left, "b": right, "top_a": left_top, "top_b": right_top, "ranking_a": _ranking(left_result), "ranking_b": _ranking(right_result), "changed": changed})
     hard_payload = {"mode": "clinician_assist", "features": ["脉微弱", "汗出", "恶风", "无汗"]}
     hard_result = run_inference(hard_payload, run_id, output_dir)
-    hard_stop_checks += 1
-    if any(item.get("safety_alerts") for item in hard_result.get("top_k", [])):
-        hard_stop_consistent += 1
+    hard_stop_hit = any(item.get("safety_alerts") for item in hard_result.get("top_k", []))
     report = {
         "counterfactual_pairs": cases,
-        "counterfactual_pass_rate": changed_or_blocked / max(len(PAIRS), 1),
-        "ranking_stability": 1 - (changed_or_blocked / max(len(PAIRS), 1)),
-        "hard_stop_consistency": hard_stop_consistent / hard_stop_checks,
-        "hard_stop_case": hard_result,
+        # pass = the engine reacts to the flipped feature (ranking or support changes)
+        "counterfactual_pass_rate": changed_count / max(len(PAIRS), 1),
+        "ranking_stability": 1 - (changed_count / max(len(PAIRS), 1)),
+        "hard_stop_consistency": 1.0 if hard_stop_hit else 0.0,
+        "hard_stop_case": {"payload": hard_payload, "alerts_triggered": hard_stop_hit},
     }
     atomic_write_json(run_dir(run_id, output_dir) / "reports" / "counterfactual_report.json", report)
     return report

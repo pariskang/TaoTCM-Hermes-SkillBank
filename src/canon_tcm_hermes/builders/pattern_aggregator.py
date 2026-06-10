@@ -22,8 +22,13 @@ def build_patterns(run_id: str, output_dir: str | Path = "outputs") -> list[dict
     patterns: list[dict[str, Any]] = []
     for formula, items in by_formula.items():
         counts = Counter(feature for clause in items for feature in normalize_features(clause.get("features_present", [])))
-        core = sorted(feature for feature, count in counts.items() if count == len(items) or feature == "无汗")
+        # core = features attested by every aggregated clause; absence-marked
+        # features (features_absent counterpart) stay core-eligible too.
+        core = sorted(feature for feature, count in counts.items() if count == len(items))
         common = sorted(feature for feature in counts if feature not in core)
+        if not core and common:
+            most_common = counts.most_common(1)[0][0]
+            core, common = [most_common], [f for f in common if f != most_common]
         evidence_segments = [clause["segment_id"] for clause in items]
         pattern_name = f"{formula}证"
         pattern = {
@@ -74,4 +79,9 @@ def _commentary_support(commentary: list[dict[str, Any]], formula: str) -> list[
 
 
 def _case_corroboration_count(cases: list[dict[str, Any]], formula: str) -> int:
-    return sum(1 for case in cases if formula in case.get("interventions", []) or formula in str(case))
+    count = 0
+    for case in cases:
+        formulas = {item.get("formula") for item in case.get("interventions", []) if isinstance(item, dict)}
+        if formula in formulas:
+            count += 1
+    return count

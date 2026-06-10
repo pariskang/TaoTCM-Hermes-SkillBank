@@ -42,7 +42,11 @@ def _rename_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_excel(input_path: str | Path, run_id: str, output_dir: str | Path = "outputs") -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    df = _rename_columns(pd.read_excel(input_path, dtype=str).fillna(""))
+    sheets = pd.read_excel(input_path, dtype=str, sheet_name=None)
+    frames = [_rename_columns(frame.fillna("")) for frame in sheets.values() if not frame.empty]
+    if not frames:
+        raise ValueError(f"no usable sheets in {input_path}")
+    df = pd.concat(frames, ignore_index=True)
     rows: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
     for idx, record in df.iterrows():

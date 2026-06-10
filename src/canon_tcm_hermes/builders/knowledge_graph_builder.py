@@ -14,7 +14,7 @@ ANNOTATION_NODE_TYPES = {
     "treatise_claims.jsonl": ("claim_id", "TreatiseClaim"),
     "case_templates.jsonl": ("case_id", "CaseRecord"),
     "commentary_templates.jsonl": ("comment_id", "Commentary"),
-    "mnemonic_templates.jsonl": ("mnemonic_id", "Mnemonic"),
+    "mnemonic_templates.jsonl": ("item_id", "Mnemonic"),
 }
 
 
@@ -79,12 +79,14 @@ def _add_domain_edges(edges: list[dict[str, Any]], annotations: dict[str, list[d
         if target:
             edges.append({"source": comment["comment_id"], "target": target, "relation": "comments_on"})
     for mnemonic in annotations["mnemonic_templates.jsonl"]:
-        target = mnemonic.get("target_formula") or mnemonic.get("target_pulse")
+        target = mnemonic.get("target_formula") or (mnemonic.get("verse_fields") or {}).get("target_id") or mnemonic.get("target_pulse")
         if target:
-            edges.append({"source": mnemonic["mnemonic_id"], "target": target, "relation": "mnemonic_of"})
+            edges.append({"source": mnemonic["item_id"], "target": target, "relation": "mnemonic_of"})
     for case in annotations["case_templates.jsonl"]:
-        for formula in case.get("interventions", []):
-            edges.append({"source": case["case_id"], "target": formula, "relation": "corroborates"})
+        for intervention in case.get("interventions", []):
+            formula = intervention.get("formula") if isinstance(intervention, dict) else intervention
+            if formula:
+                edges.append({"source": case["case_id"], "target": formula, "relation": "corroborates"})
 
 
 def _add_node(nodes: dict[str, dict[str, Any]], node_id: str, node_type: str, **attrs: Any) -> None:

@@ -25,7 +25,10 @@ def build_context_state(run_id: str, output_dir: str | Path = "outputs") -> list
                 "risk_tier": "T2",
             })
     for claim in read_jsonl(rd / "annotations" / "treatise_claims.jsonl"):
-        claim_text = " ".join(claim.get("claims", []))
+        claim_text = " ".join(
+            f"{c.get('subject', '')}{c.get('predicate', '')}{c.get('object', '')}" if isinstance(c, dict) else str(c)
+            for c in claim.get("claims", [])
+        )
         triggers = _triggers(claim_text)
         if triggers:
             rules.append({
