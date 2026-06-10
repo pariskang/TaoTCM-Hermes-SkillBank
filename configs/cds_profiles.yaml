@@ -1,0 +1,13 @@
+teaching:
+  right_person: student
+  allowed_outputs: [clause_explanation, formula_pattern_comparison, misconception_alert, rubric_feedback, osce_case]
+  forbidden_outputs: [real_patient_prescription]
+clinician_assist:
+  right_person: licensed_physician
+  allowed_outputs: [differential_list, evidence_card, contraindication_alert, missing_info, override_logging]
+  forbidden_outputs: [replace_physician_decision]
+  alert_policy: {T0: passive_info, T1: teaching_note, T2: soft_alert, T3: hard_stop}
+patient_intake:
+  right_person: patient
+  allowed_outputs: [red_flag_triage, structured_intake, visit_summary, doctor_question_list]
+  forbidden_outputs: [syndrome_suggestion, formula_recommendation, herb_recommendation, dosage, self_medication, stop_or_change_medication]

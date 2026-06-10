@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "template_id",
+    "source_id",
+    "segment_id",
+    "evidence"
+  ],
+  "properties": {
+    "template_id": {},
+    "source_id": {},
+    "segment_id": {},
+    "evidence": {},
+    "states": {},
+    "features_present": {},
+    "features_absent": {},
+    "compound_features": {},
+    "conclusion": {},
+    "assertion_force": {},
+    "negative_clause": {},
+    "risk_tier": {},
+    "annotation_flags": {}
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "row_id",
+    "source_id",
+    "is_mixed",
+    "genre_segmentation",
+    "genre_uncertain"
+  ],
+  "properties": {
+    "row_id": {
+      "type": "integer"
+    },
+    "source_id": {
+      "type": "string"
+    },
+    "is_mixed": {
+      "type": "boolean"
+    },
+    "genre_segmentation": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "segment_id",
+          "span",
+          "genre",
+          "template",
+          "confidence"
+        ],
+        "properties": {
+          "segment_id": {
+            "type": "string"
+          },
+          "span": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "genre": {
+            "enum": [
+              "canonical_clause",
+              "treatise",
+              "formula_entry",
+              "materia_medica",
+              "pulse_text",
+              "case_record",
+              "commentary",
+              "mnemonic_misc",
+              "non_medical"
+            ]
+          },
+          "template": {
+            "type": "string"
+          },
+          "confidence": {
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "quoted": {
+            "type": "boolean"
+          },
+          "dedup_target": {
+            "type": "string"
+          },
+          "variant_note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "cross_links": {
+      "type": "array"
+    },
+    "genre_uncertain": {
+      "type": "boolean"
+    },
+    "uncertainty_note": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

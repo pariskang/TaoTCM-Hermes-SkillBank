@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "canon-tcm-hermes"
+version = "0.1.0"
+description = "Genre-aware AutoBuild pipeline for evidence-grounded classical Chinese medicine Hermes/Codex skills."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "jsonschema>=4.22",
+  "pandas>=2.2",
+  "openpyxl>=3.1",
+  "PyYAML>=6.0",
+  "litellm>=1.40"
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+canon = "canon_tcm_hermes.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

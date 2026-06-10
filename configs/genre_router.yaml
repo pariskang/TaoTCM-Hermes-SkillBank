@@ -1,0 +1,11 @@
+genres:
+  canonical_clause: {schema: schemas/clause_template.schema.json, annotator: clause_annotator, can_generate: [clause_template, formula_pattern_rule_candidate, contraindication_rule], cannot_generate: []}
+  treatise: {schema: schemas/treatise_claim.schema.json, annotator: treatise_annotator, can_generate: [mechanism_claim, context_state_skeleton, explanation_card], cannot_generate: [formula_pattern_matching_rule]}
+  formula_entry: {schema: schemas/formula_template.schema.json, annotator: formula_annotator, can_generate: [formula_archive, composition, preparation, administration, modification_rule], cannot_generate: [indication_rule_without_clause_link]}
+  materia_medica: {schema: schemas/herb_template.schema.json, annotator: herb_annotator, can_generate: [herb_entity, property, function, safety_constraint], cannot_generate: [syndrome_rule, formula_pattern_rule]}
+  pulse_text: {schema: schemas/pulse_template.schema.json, annotator: pulse_annotator, can_generate: [pulse_ontology, pulse_feature_normalization, pulse_teaching_card], cannot_generate: [single_pulse_to_syndrome_hard_rule]}
+  case_record: {schema: schemas/case_template.schema.json, annotator: case_annotator, can_generate: [eval_case, teaching_case, rule_corroboration], cannot_generate: [direct_rule_induction]}
+  commentary: {schema: schemas/commentary_template.schema.json, annotator: commentary_annotator, can_generate: [explanation_enrichment, aggregation_basis, disputed_marker], cannot_generate: [independent_rule]}
+  mnemonic_misc: {schema: schemas/mnemonic_template.schema.json, annotator: mnemonic_annotator, can_generate: [teaching_memory_aid, retrieval_alias, cross_validation_signal], cannot_generate: [rule, evidence_binding]}
+mixed: {allow: true, schema: schemas/genre_segmentation.schema.json, require_cross_links: true}
+uncertain: {max_allowed_rate: 0.05, route_to: audit_queue}

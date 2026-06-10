@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "comment_id",
+    "source_id",
+    "segment_id",
+    "evidence"
+  ],
+  "properties": {
+    "comment_id": {},
+    "source_id": {},
+    "segment_id": {},
+    "evidence": {},
+    "commentator": {},
+    "target_clause": {},
+    "interpretation_summary": {},
+    "agreement_status": {},
+    "divergence_note": {},
+    "evidence_level": {},
+    "downstream_use": {},
+    "not_usable_for": {}
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "herb_id",
+    "source_id",
+    "segment_id",
+    "evidence"
+  ],
+  "properties": {
+    "herb_id": {},
+    "source_id": {},
+    "segment_id": {},
+    "evidence": {},
+    "properties": {},
+    "functions": {},
+    "indications_original": {},
+    "term_ambiguity": {},
+    "safety_constraints": {},
+    "downstream_use": {},
+    "not_usable_for": {}
+  },
+  "additionalProperties": true
+}

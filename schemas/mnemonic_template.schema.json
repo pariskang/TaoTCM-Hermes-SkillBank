@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "mnemonic_id",
+    "source_id",
+    "segment_id",
+    "evidence"
+  ],
+  "properties": {
+    "mnemonic_id": {},
+    "source_id": {},
+    "segment_id": {},
+    "evidence": {},
+    "target_formula": {},
+    "target_pulse": {},
+    "verse_function": {},
+    "consistency_check": {},
+    "evidence_level": {},
+    "downstream_use": {},
+    "not_usable_for": {}
+  },
+  "additionalProperties": true
+}

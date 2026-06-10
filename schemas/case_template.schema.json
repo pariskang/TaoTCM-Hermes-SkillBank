@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "case_id",
+    "source_id",
+    "segment_id",
+    "evidence"
+  ],
+  "properties": {
+    "case_id": {},
+    "source_id": {},
+    "segment_id": {},
+    "evidence": {},
+    "patient_context": {},
+    "presentation_timeline": {},
+    "physician_reasoning_extracted": {},
+    "interventions": {},
+    "outcome": {},
+    "auto_generated_eval_case": {},
+    "bias_flags": {},
+    "school_tag": {},
+    "not_usable_for": {}
+  },
+  "additionalProperties": true
+}

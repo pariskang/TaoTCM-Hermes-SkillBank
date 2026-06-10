@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "claim_id",
+    "source_id",
+    "segment_id",
+    "claims",
+    "evidence"
+  ],
+  "properties": {
+    "claim_id": {},
+    "source_id": {},
+    "segment_id": {},
+    "claims": {},
+    "evidence": {},
+    "claim_type": {},
+    "downstream_use": {},
+    "not_usable_for": {},
+    "school_tag": {},
+    "evidence_level": {}
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "formula_id",
+    "source_id",
+    "segment_id",
+    "composition",
+    "evidence"
+  ],
+  "properties": {
+    "formula_id": {},
+    "source_id": {},
+    "segment_id": {},
+    "composition": {},
+    "evidence": {},
+    "preparation": {},
+    "administration": {},
+    "modification_rules": {},
+    "expected_response": {},
+    "dose_conversion_modern": {},
+    "visibility_policy": {},
+    "linked_patterns": {},
+    "annotation_flags": {}
+  },
+  "additionalProperties": true
+}

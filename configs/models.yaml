@@ -1,0 +1,8 @@
+default:
+  provider: litellm
+  model_env: LITELLM_MODEL
+azure_example:
+  model: azure/gpt-4o
+  api_base_env: AZURE_API_BASE
+  api_key_env: AZURE_API_KEY
+  api_version_env: AZURE_API_VERSION
