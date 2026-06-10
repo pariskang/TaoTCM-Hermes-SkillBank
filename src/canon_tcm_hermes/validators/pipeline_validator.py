@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
-
-from jsonschema import validate
 
 from canon_tcm_hermes.annotators.base import ANNOTATION_FILES, SCHEMA_FILES
 from canon_tcm_hermes.utils import atomic_write_json, read_jsonl, run_dir
 from canon_tcm_hermes.validators.citation_validator import build_and_validate_evidence
 from canon_tcm_hermes.validators.cross_genre_validator import validate_cross_genre
+from canon_tcm_hermes.validators.schema_validator import schema_errors
 
 REQUIRED_RUN_FILES = [
     "input_rows.jsonl",
@@ -29,14 +27,11 @@ def validate_annotations(run_id: str, output_dir: str | Path = "outputs") -> dic
     failures: list[dict[str, Any]] = []
     counts: dict[str, int] = {}
     for genre, filename in ANNOTATION_FILES.items():
-        schema = json.loads((Path("schemas") / SCHEMA_FILES[genre]).read_text(encoding="utf-8"))
         rows = read_jsonl(rd / "annotations" / filename)
         counts[genre] = len(rows)
         for index, row in enumerate(rows, start=1):
-            try:
-                validate(row, schema)
-            except Exception as exc:
-                failures.append({"genre": genre, "file": filename, "line": index, "error": str(exc)})
+            for error in schema_errors(row, SCHEMA_FILES[genre]):
+                failures.append({"genre": genre, "file": filename, "line": index, "error": error})
     report = {"annotation_counts": counts, "failed": len(failures), "failures": failures, "passed": not failures}
     atomic_write_json(rd / "reports" / "schema_validation_report.json", report)
     return report

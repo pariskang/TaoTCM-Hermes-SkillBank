@@ -9,6 +9,9 @@ from canon_tcm_hermes.utils import read_jsonl, run_dir
 PATIENT_QUESTIONS = ["发热持续多久？", "是否出汗？", "是否咳喘？", "是否胸痛或呼吸困难？", "是否正在服用药物？"]
 RED_FLAG_TERMS = ["胸痛", "呼吸困难", "神昏", "高热不退", "咯血"]
 FORBIDDEN_PATIENT_KEYS = {"top_k", "pattern", "formula", "dosage", "treatment_principle", "syndrome"}
+# Content-level guard: formula/syndrome/dosage vocabulary must never reach
+# the patient_intake response, regardless of which key carries it.
+FORBIDDEN_PATIENT_TERMS = ["汤", "湯", "散", "丸", "证", "證", "剂量", "劑量", "两", "兩", "钱", "錢", "治法", "方剂", "方劑"]
 
 
 def run_inference(payload: dict[str, Any], run_id: str = "demo001", output_dir: str | Path = "outputs") -> dict[str, Any]:
@@ -64,8 +67,9 @@ def run_inference(payload: dict[str, Any], run_id: str = "demo001", output_dir: 
 def _assert_patient_safe(result: dict[str, Any]) -> None:
     text = str(result)
     leaked = [key for key in FORBIDDEN_PATIENT_KEYS if key in text]
+    leaked += [term for term in FORBIDDEN_PATIENT_TERMS if term in text]
     if leaked:
-        raise ValueError(f"patient_intake output leaked forbidden keys: {leaked}")
+        raise ValueError(f"patient_intake output leaked forbidden content: {leaked}")
 
 
 def _load_evidence_by_segment(rd: Path) -> dict[str, list[dict[str, Any]]]:

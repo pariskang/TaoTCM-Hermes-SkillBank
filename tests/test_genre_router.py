@@ -25,3 +25,25 @@ def test_mixed_clause_formula_segmentation():
     assert r["is_mixed"] is True
     assert [s["genre"] for s in r["genre_segmentation"]] == ["canonical_clause", "formula_entry"]
     assert r["cross_links"][0]["relation"] == "prescribes"
+
+
+def test_short_even_phrase_clause_is_not_verse():
+    # regression: 3+5+5 char phrases look metrically even, but 主之 marks a clause
+    assert classify_text("太阳病，无汗而喘者，麻黄汤主之。")[0] == "canonical_clause"
+
+
+def test_commentary_quote_split_marks_dedup_target():
+    r = segment_row(row("太阳病，头痛发热，无汗而喘者，麻黄汤主之。注曰：此表实无汗，故以麻黄发之。"))
+    assert r["is_mixed"] is True
+    genres = [s["genre"] for s in r["genre_segmentation"]]
+    assert genres == ["canonical_clause", "commentary"]
+    assert r["genre_segmentation"][0]["quoted"] is True
+    assert r["cross_links"][0]["relation"] == "comments_on"
+
+
+def test_route_output_matches_authoritative_schema():
+    from canon_tcm_hermes.validators.schema_validator import schema_errors
+
+    r = segment_row(row("太阳病，头痛发热，身疼腰痛，恶风，无汗而喘者，麻黄汤主之。"))
+    assert schema_errors(r, "genre_segmentation.schema.json") == []
+    assert r["annotation_meta"]["annotator_type"] in {"heuristic", "llm"}

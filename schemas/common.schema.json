@@ -1,11 +1,351 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "common.schema.json",
-  "type": "object",
-  "properties": {
-    "evidence": {
-      "type": "object"
+ "$schema": "http://json-schema.org/draft-07/schema#",
+ "$id": "common.schema.json",
+ "title": "TaoTCM Common Definitions",
+ "description": "八类文体模板共享的公共结构定义",
+ "definitions": {
+  "sourceRef": {
+   "type": "object",
+   "description": "证据回源定位锚点。所有知识资产必须可经此结构回溯到 data.xlsx 原始行与字符区间",
+   "properties": {
+    "source_id": {
+     "type": "string",
+     "description": "全局唯一来源ID，命名约定 BOOK_VOLxx_ROWxxxxx_CHUNKxx"
+    },
+    "book": {
+     "type": "string"
+    },
+    "volume": {
+     "type": "string"
+    },
+    "chapter": {
+     "type": "string"
+    },
+    "version": {
+     "type": "string",
+     "description": "版本/底本，如 宋本、赵开美本"
+    },
+    "row_id": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "chunk_id": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "start_offset": {
+     "type": "integer",
+     "minimum": 0,
+     "description": "span 起始字符 offset（含）"
+    },
+    "end_offset": {
+     "type": "integer",
+     "minimum": 0,
+     "description": "span 结束字符 offset（不含）"
+    },
+    "text_hash": {
+     "type": "string",
+     "description": "span 原文 SHA-1，hash 不一致触发 revalidate"
     }
+   },
+   "required": [
+    "source_id",
+    "book",
+    "row_id",
+    "start_offset",
+    "end_offset",
+    "text_hash"
+   ]
   },
-  "additionalProperties": true
+  "evidenceLevel": {
+   "type": "string",
+   "enum": [
+    "E1",
+    "E2",
+    "E3",
+    "E4",
+    "E5"
+   ],
+   "description": "E1经典原文明确陈述 E2经典原文间接陈述/互文可考 E3注家共识 E4注家分歧 E5现代/医话/歌诀等弱证据"
+  },
+  "genre": {
+   "type": "string",
+   "enum": [
+    "canonical_clause",
+    "treatise",
+    "formula_entry",
+    "materia_medica",
+    "pulse_text",
+    "case_record",
+    "commentary",
+    "mnemonic_misc",
+    "non_medical"
+   ]
+  },
+  "assertionForce": {
+   "type": "string",
+   "enum": [
+    "主之",
+    "宜",
+    "可与",
+    "可",
+    "当",
+    "不可与",
+    "不可",
+    "禁",
+    "与之则",
+    "宜先",
+    "宜后",
+    "未明示"
+   ],
+   "description": "保留原文断言强度，区分强推荐/可考虑/禁忌/误治后果"
+  },
+  "riskTier": {
+   "type": "string",
+   "enum": [
+    "T0",
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "description": "T0被动知识 T1教学规则 T2医生端推理规则 T3安全关键(禁忌/毒剧药/妊娠/儿童/误治)"
+  },
+  "downstreamUse": {
+   "type": "array",
+   "description": "该资产允许进入的下游模块白名单",
+   "items": {
+    "type": "string",
+    "enum": [
+     "clause_template",
+     "pattern_aggregation",
+     "context_state_skeleton",
+     "explanation_card",
+     "formula_archive",
+     "herb_entity",
+     "safety_constraint_pool",
+     "pulse_ontology",
+     "feature_normalization",
+     "eval_cases",
+     "teaching_osce",
+     "pattern_rule_corroboration",
+     "explanation_enrichment",
+     "aggregation_decision_basis",
+     "disputed_marker",
+     "teaching_memory_aid",
+     "retrieval_alias",
+     "cross_validation"
+    ]
+   },
+   "uniqueItems": true
+  },
+  "notUsableFor": {
+   "type": "array",
+   "description": "禁止用途黑名单——防止自动构建器误编译的关键闸门",
+   "items": {
+    "type": "string"
+   },
+   "uniqueItems": true
+  },
+  "annotationMeta": {
+   "type": "object",
+   "description": "标注过程元数据，支撑审计与模型分歧检测",
+   "properties": {
+    "annotator_type": {
+     "type": "string",
+     "enum": [
+      "llm",
+      "human",
+      "llm_cross_checked",
+      "heuristic"
+     ]
+    },
+    "annotator_id": {
+     "type": "string",
+     "description": "模型名/版本或标注员编号"
+    },
+    "secondary_annotator_id": {
+     "type": "string"
+    },
+    "confidence": {
+     "type": "string",
+     "enum": [
+      "high",
+      "medium",
+      "low"
+     ]
+    },
+    "model_disagreement": {
+     "type": "boolean",
+     "default": false
+    },
+    "annotation_flags": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "uncertainty_note": {
+     "type": "string"
+    },
+    "guideline_version": {
+     "type": "string",
+     "description": "所依据的标注规范版本，如 v1.0"
+    },
+    "timestamp": {
+     "type": "string",
+     "format": "date-time"
+    }
+   },
+   "required": [
+    "annotator_type",
+    "confidence",
+    "guideline_version"
+   ]
+  },
+  "buildStatus": {
+   "type": "object",
+   "properties": {
+    "auto_build_status": {
+     "type": "string",
+     "enum": [
+      "generated",
+      "revised",
+      "imported"
+     ]
+    },
+    "verification_status": {
+     "type": "string",
+     "enum": [
+      "unverified",
+      "citation_verified",
+      "citation_failed",
+      "revalidate"
+     ]
+    },
+    "review_status": {
+     "type": "string",
+     "enum": [
+      "draft",
+      "auto_passed",
+      "expert_verified",
+      "stable",
+      "disputed",
+      "deprecated",
+      "safety_hold"
+     ]
+    },
+    "review_requirement": {
+     "type": "string",
+     "enum": [
+      "none",
+      "sample_review",
+      "terminal_review_before_stable",
+      "dual_sign_required"
+     ]
+    },
+    "version": {
+     "type": "string",
+     "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    }
+   },
+   "required": [
+    "auto_build_status",
+    "verification_status",
+    "review_status"
+   ]
+  },
+  "termAmbiguity": {
+   "type": "object",
+   "description": "术语歧义保留结构——自动标注不等于自动确定",
+   "properties": {
+    "surface": {
+     "type": "string",
+     "description": "原文表面词形"
+    },
+    "candidate_meanings": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "object",
+      "properties": {
+       "meaning": {
+        "type": "string"
+       },
+       "context": {
+        "type": "string"
+       },
+       "confidence": {
+        "type": "string",
+        "enum": [
+         "high",
+         "medium",
+         "low",
+         "excluded_by_context"
+        ]
+       }
+      },
+      "required": [
+       "meaning",
+       "confidence"
+      ]
+     }
+    },
+    "final_normalization": {
+     "type": "string"
+    },
+    "ambiguity_status": {
+     "type": "string",
+     "enum": [
+      "unambiguous",
+      "resolved_by_context",
+      "unresolved",
+      "requires_review_if_used_for_rule"
+     ]
+    }
+   },
+   "required": [
+    "surface",
+    "candidate_meanings",
+    "ambiguity_status"
+   ]
+  },
+  "schoolTag": {
+   "type": "string",
+   "description": "流派标签，如 伤寒学派/温病学派/易水学派/某注家",
+   "minLength": 1
+  },
+  "crossLink": {
+   "type": "object",
+   "description": "跨文体/跨资产链接",
+   "properties": {
+    "from": {
+     "type": "string"
+    },
+    "to": {
+     "type": "string"
+    },
+    "relation": {
+     "type": "string",
+     "enum": [
+      "prescribes",
+      "comments_on",
+      "mnemonic_of",
+      "applies",
+      "corroborates",
+      "contradicts",
+      "variant_of",
+      "defines_feature_in"
+     ]
+    },
+    "note": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "from",
+    "to",
+    "relation"
+   ]
+  }
+ }
 }

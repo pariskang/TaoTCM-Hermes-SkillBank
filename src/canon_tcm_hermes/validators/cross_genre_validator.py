@@ -24,17 +24,33 @@ def validate_cross_genre(run_id: str, output_dir: str | Path = "outputs") -> dic
     inconsistencies: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
 
+    formula_by_name = {item.get("formula_name"): item for item in formulas if item.get("formula_name")}
     for mnemonic in mnemonics:
         target = mnemonic.get("target_formula")
-        if target and target not in formula_names and target.upper() not in formula_ids:
-            warnings.append({"type": "mnemonic_target_without_formula_archive", "target": target, "mnemonic_id": mnemonic.get("mnemonic_id")})
+        if not target:
+            continue
+        if target not in formula_names and ("F_" + target.upper()) not in formula_ids:
+            warnings.append({"type": "mnemonic_target_without_formula_archive", "target": target, "item_id": mnemonic.get("item_id")})
+            continue
+        # consistency check: every herb of the formula archive should be named
+        # in the mnemonic verse (歌诀组成 vs 方剂档案, protocol L3 check 1).
+        verse_text = (mnemonic.get("evidence") or {}).get("quote", "")
+        archive = formula_by_name.get(target)
+        if archive and verse_text:
+            herbs = [c.get("herb", "") for c in archive.get("composition", [])]
+            missing = [h for h in herbs if h and h not in verse_text and target not in (h or "")]
+            missing = [h for h in missing if h not in target]
+            status = "consistent" if not missing else "inconsistent"
+            if status == "inconsistent":
+                warnings.append({"type": "mnemonic_composition_mismatch", "target": target, "item_id": mnemonic.get("item_id"), "herbs_not_in_verse": missing})
     for formula in formulas:
         linked = any((clause.get("conclusion") or {}).get("formula") == formula.get("formula_name") for clause in clauses)
         if not linked:
             warnings.append({"type": "formula_without_clause_link", "formula": formula.get("formula_name")})
     for case in cases:
-        for intervention in case.get("interventions", []):
-            if intervention not in formula_names:
+        for item in case.get("interventions", []):
+            intervention = item.get("formula") if isinstance(item, dict) else item
+            if intervention and intervention not in formula_names:
                 warnings.append({"type": "case_intervention_without_formula_archive", "case_id": case.get("case_id"), "intervention": intervention})
     for comment in commentary:
         target = comment.get("target_clause")
