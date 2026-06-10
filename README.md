@@ -1,6 +1,6 @@
 # TaoTCM-Hermes-SkillBank
 
-CanonTCM-Hermes AutoBuild Protocol implementation: a genre-aware, evidence-grounded, auditable pipeline that transforms `data.xlsx` into Hermes/Codex-compatible Skill packages for classical Chinese medicine teaching and clinician-assist workflows.
+TaoTCM-Hermes AutoBuild Protocol implementation: a genre-aware, evidence-grounded, auditable pipeline that transforms `data.xlsx` into Hermes/Codex-compatible Skill packages for classical Chinese medicine teaching and clinician-assist workflows.
 
 ## Quick start
 
