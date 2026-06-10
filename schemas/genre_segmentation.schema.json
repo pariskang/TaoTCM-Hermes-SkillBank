@@ -1,96 +1,71 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "genre_segmentation.schema.json",
+  "title": "Genre Segmentation (L0.5 路由器输出)",
+  "description": "对 data.xlsx 单行文本的文体判定与混合文体切分结果。每个 span 路由至对应文体标注模板",
   "type": "object",
-  "required": [
-    "row_id",
-    "source_id",
-    "is_mixed",
-    "genre_segmentation",
-    "genre_uncertain"
-  ],
   "properties": {
-    "row_id": {
-      "type": "integer"
+    "segmentation_id": { "type": "string" },
+    "row_source": {
+      "type": "object",
+      "properties": {
+        "book": { "type": "string" },
+        "volume": { "type": "string" },
+        "chapter": { "type": "string" },
+        "version": { "type": "string" },
+        "row_id": { "type": "integer", "minimum": 0 },
+        "row_text_hash": { "type": "string" },
+        "row_char_length": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["book", "row_id", "row_text_hash", "row_char_length"]
     },
-    "source_id": {
-      "type": "string"
-    },
-    "is_mixed": {
-      "type": "boolean"
-    },
+    "is_mixed": { "type": "boolean" },
     "genre_segmentation": {
       "type": "array",
       "minItems": 1,
+      "description": "按原文顺序排列的 span 列表；span 不重叠，可不连续覆盖",
       "items": {
         "type": "object",
-        "required": [
-          "segment_id",
-          "span",
-          "genre",
-          "template",
-          "confidence"
-        ],
         "properties": {
-          "segment_id": {
-            "type": "string"
-          },
+          "span_index": { "type": "integer", "minimum": 0 },
           "span": {
             "type": "array",
-            "prefixItems": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "integer"
-              }
-            ],
+            "items": { "type": "integer", "minimum": 0 },
             "minItems": 2,
-            "maxItems": 2
+            "maxItems": 2,
+            "description": "[start_offset, end_offset)，字符级"
           },
-          "genre": {
-            "enum": [
-              "canonical_clause",
-              "treatise",
-              "formula_entry",
-              "materia_medica",
-              "pulse_text",
-              "case_record",
-              "commentary",
-              "mnemonic_misc",
-              "non_medical"
-            ]
+          "genre": { "$ref": "common.schema.json#/definitions/genre" },
+          "sub_genre": {
+            "type": "string",
+            "description": "亚型：条文体 theoretical|prescriptive；歌诀医话 verse|note；方书体 composition|administration|modification 等"
           },
-          "template": {
-            "type": "string"
+          "quoted": { "type": "boolean", "default": false, "description": "是否为被引原文（注释体内的引文 span）" },
+          "dedup_target": { "type": "string", "description": "若 quoted=true，指向语料库中该原文主 fragment_id，避免重复建模板" },
+          "variant_note": { "type": "string", "description": "引文与底本的文字出入记录（异文副产品）" },
+          "routed_template": {
+            "type": "string",
+            "enum": ["clause", "treatise_claim", "formula", "herb", "pulse", "case", "commentary", "mnemonic", "skip"],
+            "description": "路由目标模板；non_medical 路由 skip"
           },
-          "confidence": {
-            "enum": [
-              "high",
-              "medium",
-              "low"
-            ]
-          },
-          "quoted": {
-            "type": "boolean"
-          },
-          "dedup_target": {
-            "type": "string"
-          },
-          "variant_note": {
-            "type": "string"
-          }
-        }
+          "genre_confidence": { "type": "string", "enum": ["high", "medium", "low"] }
+        },
+        "required": ["span_index", "span", "genre", "routed_template", "genre_confidence"]
       }
     },
     "cross_links": {
-      "type": "array"
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/definitions/crossLink" }
     },
-    "genre_uncertain": {
-      "type": "boolean"
-    },
-    "uncertainty_note": {
-      "type": "string"
-    }
+    "genre_uncertain": { "type": "boolean", "default": false },
+    "uncertainty_note": { "type": "string" },
+    "annotation_meta": { "$ref": "common.schema.json#/definitions/annotationMeta" }
   },
-  "additionalProperties": true
+  "required": ["segmentation_id", "row_source", "is_mixed", "genre_segmentation", "annotation_meta"],
+  "allOf": [
+    {
+      "if": { "properties": { "genre_uncertain": { "const": true } } },
+      "then": { "required": ["uncertainty_note"] }
+    }
+  ]
 }

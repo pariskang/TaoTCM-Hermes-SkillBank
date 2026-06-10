@@ -1,24 +1,76 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "mnemonic_template.schema.json",
+  "title": "Mnemonic / Miscellany Template 医话歌诀体模板",
+  "description": "歌诀亚类充当教学助记与交叉验证器；医话亚类进教学素材池。证据等级固定 E5，永不生成规则、永不作为证据绑定",
   "type": "object",
-  "required": [
-    "mnemonic_id",
-    "source_id",
-    "segment_id",
-    "evidence"
-  ],
   "properties": {
-    "mnemonic_id": {},
-    "source_id": {},
-    "segment_id": {},
-    "evidence": {},
-    "target_formula": {},
-    "target_pulse": {},
-    "verse_function": {},
-    "consistency_check": {},
-    "evidence_level": {},
-    "downstream_use": {},
-    "not_usable_for": {}
+    "item_id": { "type": "string" },
+    "sub_genre": { "type": "string", "enum": ["verse", "note"], "description": "verse歌诀韵文 / note医话笔记" },
+    "verse_fields": {
+      "type": "object",
+      "description": "sub_genre=verse 时填写",
+      "properties": {
+        "verse_function": {
+          "type": "string",
+          "enum": ["方剂组成记忆", "药性记忆", "脉象记忆", "治法记忆", "穴位记忆", "其他"]
+        },
+        "target_type": { "type": "string", "enum": ["formula", "herb", "pulse", "other"] },
+        "target_id": { "type": "string", "description": "链接的 formula_id / herb_id / pulse_id" },
+        "consistency_check": {
+          "type": "object",
+          "description": "交叉验证器：歌诀是对原始档案的压缩转述，自动比对一致性可反向发现标注错误",
+          "properties": {
+            "against": { "type": "string", "description": "比对目标，如 F_MAHUANG_TANG.composition" },
+            "status": { "type": "string", "enum": ["consistent", "inconsistent", "not_checked"] },
+            "inconsistency_detail": { "type": "string", "description": "status=inconsistent 时必填，进终审包 cross_genre_inconsistencies" }
+          },
+          "required": ["against", "status"]
+        }
+      },
+      "required": ["verse_function", "target_type"]
+    },
+    "note_fields": {
+      "type": "object",
+      "description": "sub_genre=note 时填写",
+      "properties": {
+        "note_type": { "type": "string", "enum": ["临证心得", "读书札记", "医林掌故", "见闻杂记", "warning_anecdote"] },
+        "teaching_value": { "type": "string", "description": "可注入解释卡片的临床警句或教学点摘要" },
+        "mentions_case_fragment": { "type": "boolean", "default": false, "description": "若含患者片段但不足以重建诊疗时间线，仍判医话（规范3.2）" },
+        "related_topics": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["note_type"]
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "source": { "$ref": "common.schema.json#/definitions/sourceRef" },
+        "quote_hash": { "type": "string" },
+        "evidence_level": { "allOf": [{ "$ref": "common.schema.json#/definitions/evidenceLevel" }], "description": "固定 E5" }
+      },
+      "required": ["source", "quote_hash", "evidence_level"]
+    },
+    "downstream_use": {
+      "allOf": [{ "$ref": "common.schema.json#/definitions/downstreamUse" }],
+      "description": "仅允许 teaching_memory_aid / retrieval_alias / cross_validation"
+    },
+    "not_usable_for": {
+      "allOf": [{ "$ref": "common.schema.json#/definitions/notUsableFor" }],
+      "description": "必须包含 rule 与 evidence_binding"
+    },
+    "risk_tier": { "allOf": [{ "$ref": "common.schema.json#/definitions/riskTier" }], "description": "固定 T0" },
+    "build_status": { "$ref": "common.schema.json#/definitions/buildStatus" },
+    "annotation_meta": { "$ref": "common.schema.json#/definitions/annotationMeta" }
   },
-  "additionalProperties": true
+  "required": ["item_id", "sub_genre", "evidence", "not_usable_for", "build_status", "annotation_meta"],
+  "allOf": [
+    {
+      "if": { "properties": { "sub_genre": { "const": "verse" } } },
+      "then": { "required": ["verse_fields"] }
+    },
+    {
+      "if": { "properties": { "sub_genre": { "const": "note" } } },
+      "then": { "required": ["note_fields"] }
+    }
+  ]
 }

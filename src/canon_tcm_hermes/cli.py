@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 from canon_tcm_hermes.annotators.base import annotate_run
 from canon_tcm_hermes.builders.audit_package_builder import build_audit_package
@@ -13,6 +12,7 @@ from canon_tcm_hermes.builders.pattern_aggregator import build_patterns
 from canon_tcm_hermes.eval.build_eval_cases import build_eval_cases
 from canon_tcm_hermes.eval.run_ablation import run_ablation
 from canon_tcm_hermes.eval.run_counterfactual_tests import run_counterfactual
+from canon_tcm_hermes.governance.promotion import promote_version
 from canon_tcm_hermes.io.excel_loader import load_excel
 from canon_tcm_hermes.router.genre_router import route_rows, route_run
 from canon_tcm_hermes.utils import ensure_dir, run_dir
@@ -22,42 +22,96 @@ from canon_tcm_hermes.validators.protocol_assessor import assess_protocol
 
 DEFAULT_SKILL_ID = "shanghan_six_formula_cluster"
 
+COMMANDS = [
+    "init", "make-demo", "route", "annotate", "validate", "build-graph", "build-patterns",
+    "compile-inference", "build-skill", "build-audit", "eval-counterfactual", "build-eval",
+    "eval-ablation", "export-codex", "assess", "promote", "all", "build",
+]
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="canon")
     sub = parser.add_subparsers(dest="cmd", required=True)
-    for name in ["init", "route", "annotate", "validate", "build-graph", "build-patterns", "compile-inference", "build-skill", "build-audit", "eval-counterfactual", "build-eval", "eval-ablation", "export-codex", "assess", "all", "build"]:
+    for name in COMMANDS:
         p = sub.add_parser(name)
         p.add_argument("--input")
         p.add_argument("--run-id", default="demo001")
         p.add_argument("--skill-id", default=DEFAULT_SKILL_ID)
         p.add_argument("--output-dir", default="outputs")
+        llm = p.add_mutually_exclusive_group()
+        llm.add_argument("--llm", dest="use_llm", action="store_true", default=None, help="force LiteLLM annotation (requires LITELLM_MODEL env)")
+        llm.add_argument("--no-llm", dest="use_llm", action="store_false", help="force deterministic heuristic annotation")
+        if name == "promote":
+            p.add_argument("--decision", required=True, choices=["promote", "revise", "reject", "disputed"])
+            p.add_argument("--expert-id", required=True)
+            p.add_argument("--approved-version", default="1.0.0")
+            p.add_argument("--reason", default="")
     args = parser.parse_args(argv)
+
     if args.cmd == "init":
-        for p in ["data/raw","outputs/runs","configs","schemas"]: ensure_dir(p)
+        for p in ["data/raw", "outputs/runs", "configs", "schemas"]:
+            ensure_dir(p)
+        return
+    if args.cmd == "make-demo":
+        from canon_tcm_hermes.demo_data import make_demo
+
+        print(make_demo(args.input or "data/demo/shanghan_six_formula_demo.xlsx"))
         return
     if args.cmd == "route":
         if args.input:
-            rows, _ = load_excel(args.input, args.run_id, args.output_dir); route_rows(rows, args.run_id, args.output_dir)
+            rows, _ = load_excel(args.input, args.run_id, args.output_dir)
+            route_rows(rows, args.run_id, args.output_dir, use_llm=args.use_llm)
         else:
-            route_run(args.run_id, args.output_dir)
+            route_run(args.run_id, args.output_dir, use_llm=args.use_llm)
         return
-    if args.cmd == "annotate": annotate_run(args.run_id, args.output_dir); return
-    if args.cmd == "validate": run_validation(args.run_id, args.output_dir, args.skill_id); return
-    if args.cmd == "build-graph": build_knowledge_graph(args.run_id, args.output_dir); return
-    if args.cmd == "build-patterns": build_patterns(args.run_id, args.output_dir); return
-    if args.cmd == "compile-inference": build_context_state(args.run_id, args.output_dir); build_inference_config(args.run_id, args.skill_id, args.output_dir); return
-    if args.cmd in {"build-skill", "export-codex"}: build_skill(args.run_id, args.skill_id, args.output_dir); return
-    if args.cmd == "build-audit": build_audit_package(args.run_id, args.skill_id, args.output_dir); return
-    if args.cmd == "eval-counterfactual": run_counterfactual(args.run_id, args.output_dir); return
-    if args.cmd == "build-eval": build_eval_cases(args.run_id, args.output_dir); return
-    if args.cmd == "eval-ablation": run_ablation(args.run_id, args.output_dir); return
-    if args.cmd == "assess": assess_protocol(args.run_id, args.output_dir); return
+    if args.cmd == "annotate":
+        annotate_run(args.run_id, args.output_dir, use_llm=args.use_llm)
+        return
+    if args.cmd == "validate":
+        report = run_validation(args.run_id, args.output_dir, args.skill_id)
+        print("validation passed" if report["passed"] else "validation FAILED — see reports/validation_summary.json")
+        return
+    if args.cmd == "build-graph":
+        build_knowledge_graph(args.run_id, args.output_dir)
+        return
+    if args.cmd == "build-patterns":
+        build_patterns(args.run_id, args.output_dir)
+        return
+    if args.cmd == "compile-inference":
+        build_context_state(args.run_id, args.output_dir)
+        build_inference_config(args.run_id, args.skill_id, args.output_dir)
+        return
+    if args.cmd in {"build-skill", "export-codex"}:
+        build_skill(args.run_id, args.skill_id, args.output_dir)
+        return
+    if args.cmd == "build-audit":
+        build_audit_package(args.run_id, args.skill_id, args.output_dir)
+        return
+    if args.cmd == "eval-counterfactual":
+        run_counterfactual(args.run_id, args.output_dir)
+        return
+    if args.cmd == "build-eval":
+        build_eval_cases(args.run_id, args.output_dir)
+        return
+    if args.cmd == "eval-ablation":
+        run_ablation(args.run_id, args.output_dir)
+        return
+    if args.cmd == "assess":
+        assess_protocol(args.run_id, args.output_dir)
+        return
+    if args.cmd == "promote":
+        record = promote_version(
+            args.run_id, args.expert_id, args.decision, args.output_dir,
+            approved_version=args.approved_version, skill_id=args.skill_id, reason=args.reason,
+        )
+        print(record)
+        return
     if args.cmd in {"all", "build"}:
         if not args.input:
             raise SystemExit("canon all/build requires --input")
         rows, _ = load_excel(args.input, args.run_id, args.output_dir)
-        route_rows(rows, args.run_id, args.output_dir)
-        annotate_run(args.run_id, args.output_dir)
+        route_rows(rows, args.run_id, args.output_dir, use_llm=args.use_llm)
+        annotate_run(args.run_id, args.output_dir, use_llm=args.use_llm)
         build_and_validate_evidence(args.run_id, args.output_dir)
         build_knowledge_graph(args.run_id, args.output_dir)
         build_patterns(args.run_id, args.output_dir)
@@ -71,6 +125,7 @@ def main(argv: list[str] | None = None) -> None:
         run_validation(args.run_id, args.output_dir, args.skill_id)
         assess_protocol(args.run_id, args.output_dir)
         print(run_dir(args.run_id, args.output_dir))
+
 
 if __name__ == "__main__":
     main()

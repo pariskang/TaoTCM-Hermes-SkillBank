@@ -1,24 +1,74 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "herb_template.schema.json",
+  "title": "Materia Medica Template 本草体药物模板",
+  "description": "以单味药为单元的属性档案与安全约束源。主治列表禁止反向编译为辨证规则",
   "type": "object",
-  "required": [
-    "herb_id",
-    "source_id",
-    "segment_id",
-    "evidence"
-  ],
   "properties": {
-    "herb_id": {},
-    "source_id": {},
-    "segment_id": {},
-    "evidence": {},
-    "properties": {},
-    "functions": {},
-    "indications_original": {},
-    "term_ambiguity": {},
-    "safety_constraints": {},
-    "downstream_use": {},
-    "not_usable_for": {}
+    "herb_id": { "type": "string", "description": "如 H_MAHUANG" },
+    "herb_name": { "type": "string" },
+    "aliases": { "type": "array", "items": { "type": "string" } },
+    "properties": {
+      "type": "object",
+      "properties": {
+        "flavor": { "type": "array", "items": { "type": "string" }, "description": "味：苦/辛/甘/酸/咸/淡/涩" },
+        "nature": { "type": "string", "description": "性：寒/热/温/凉/平，可附微/大修饰" },
+        "toxicity_original": { "type": "string", "enum": ["无毒", "微毒", "有毒", "大毒", "未明示"], "description": "原文毒性声明" },
+        "meridian_tropism": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "归经；注意归经体系晚出，若原文无此内容须标 basis=后世补注"
+        },
+        "meridian_basis": { "type": "string", "enum": ["原文明示", "后世补注", "无"], "default": "无" }
+      }
+    },
+    "functions": { "type": "array", "items": { "type": "string" }, "description": "功效动词短语：发表出汗/止咳逆上气" },
+    "indications_original": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "原文主治列表。仅作实体属性，禁止编译为 症状→用药 规则"
+    },
+    "processing_methods": { "type": "array", "items": { "type": "string" } },
+    "safety_constraints": {
+      "type": "array",
+      "description": "安全约束池：禁忌人群/配伍禁忌/用量警示。进入 safety_checker，按 T3 审核",
+      "items": {
+        "type": "object",
+        "properties": {
+          "constraint": { "type": "string" },
+          "constraint_type": { "type": "string", "enum": ["population", "combination", "dose_warning", "condition", "processing_required"] },
+          "applies_to": { "type": "array", "items": { "type": "string" }, "description": "妊娠/儿童/老人/体虚多汗 等" },
+          "source_type": { "type": "string", "enum": ["原文明示", "后世共识", "现代补充"] },
+          "evidence_level": { "$ref": "common.schema.json#/definitions/evidenceLevel" },
+          "enforcement": { "type": "string", "enum": ["hard_stop", "soft_alert", "passive_info"] }
+        },
+        "required": ["constraint", "constraint_type", "source_type", "evidence_level", "enforcement"]
+      }
+    },
+    "term_ambiguity": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/definitions/termAmbiguity" },
+      "description": "如 本经'中风'≠卒中；'消渴'症状/病名歧义"
+    },
+    "linked_formulas": { "type": "array", "items": { "type": "string" }, "description": "含该药的 formula_id 列表（自动回填）" },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "source": { "$ref": "common.schema.json#/definitions/sourceRef" },
+        "quote": { "type": "string" },
+        "quote_hash": { "type": "string" },
+        "evidence_level": { "$ref": "common.schema.json#/definitions/evidenceLevel" }
+      },
+      "required": ["source", "quote", "quote_hash", "evidence_level"]
+    },
+    "downstream_use": { "$ref": "common.schema.json#/definitions/downstreamUse" },
+    "not_usable_for": {
+      "allOf": [{ "$ref": "common.schema.json#/definitions/notUsableFor" }],
+      "description": "必须包含 single_herb_indication_to_syndrome_rule"
+    },
+    "risk_tier": { "$ref": "common.schema.json#/definitions/riskTier" },
+    "build_status": { "$ref": "common.schema.json#/definitions/buildStatus" },
+    "annotation_meta": { "$ref": "common.schema.json#/definitions/annotationMeta" }
   },
-  "additionalProperties": true
+  "required": ["herb_id", "herb_name", "evidence", "not_usable_for", "build_status", "annotation_meta"]
 }

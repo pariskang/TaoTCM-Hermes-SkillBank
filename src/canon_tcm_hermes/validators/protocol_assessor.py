@@ -25,9 +25,9 @@ PROTOCOL_CAPABILITIES = [
     {
         "capability": "L1_annotation",
         "executable_status": "implemented",
-        "maturity_status": "needs_llm_production_mode",
-        "note": "Genre-specific deterministic annotators plus schema-validating LiteLLM JSON wrapper are available.",
-        "remaining_work": ["Wire default async LiteLLM annotation orchestration, retries, validation-diff prompts, and raw output persistence for production runs."],
+        "maturity_status": "needs_llm_quality_calibration",
+        "note": "LiteLLM annotation with validation-diff retries, concurrency, SQLite resume, and heuristic fallback is wired into the router and all eight genre annotators; offline mode stays deterministic.",
+        "remaining_work": ["Calibrate LLM annotation quality against micro-gold samples and tune per-genre prompts."],
     },
     {
         "capability": "L2_evidence_backtrace",

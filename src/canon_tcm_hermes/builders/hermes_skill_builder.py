@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from canon_tcm_hermes.utils import atomic_write_json, atomic_write_text, ensure_dir, read_jsonl, run_dir
+from canon_tcm_hermes.utils import atomic_write_json, atomic_write_text, ensure_dir, project_root, read_jsonl, run_dir
 
 SKILL_MD = """---
 name: {name}
@@ -132,7 +132,24 @@ def build_skill(run_id: str, skill_id: str, output_dir: str | Path = "outputs") 
     scripts = ensure_dir(out / "scripts")
     name = skill_id.replace("_", "-")
     atomic_write_text(out / "SKILL.md", SKILL_MD.format(name=name, title=skill_id.replace("_", " ").title()))
-    atomic_write_text(out / "skill.yaml", yaml.safe_dump({"skill_id": skill_id, "run_id": run_id, "protocol_version": "v5.0", "status": "auto_generated_requires_audit"}, allow_unicode=True, sort_keys=False))
+    skill_meta = {
+        "skill_id": skill_id,
+        "run_id": run_id,
+        "protocol_version": "v5.0",
+        "version": "0.1.0",
+        "status": "auto_generated_requires_audit",
+        "lineage": {"built_from_run": run_id, "parent_version": None},
+        "evolution": {
+            "loop": [
+                "add or revise rows in data.xlsx",
+                "canon all --input data.xlsx --run-id <new-run>",
+                "review audit_package.json",
+                "canon promote --run-id <new-run> --skill-id " + skill_id + " --decision promote --expert-id <id>",
+            ],
+            "evolution_log": [],
+        },
+    }
+    atomic_write_text(out / "skill.yaml", yaml.safe_dump(skill_meta, allow_unicode=True, sort_keys=False))
     copies = [("annotations/clause_templates.jsonl", "clause_templates.jsonl"), ("patterns/pattern_aggregations.jsonl", "pattern_aggregations.jsonl"), ("inference/context_state_rules.jsonl", "context_state_rules.jsonl"), ("evidence/evidence_index.jsonl", "evidence_index.jsonl"), ("inference/inference_config.yaml", "inference_config.yaml"), ("eval/eval_cases.jsonl", "eval_cases.jsonl")]
     all_ann = []
     for p in (rd / "annotations").glob("*.jsonl"):
@@ -143,6 +160,9 @@ def build_skill(run_id: str, skill_id: str, output_dir: str | Path = "outputs") 
         if sp.exists():
             shutil.copyfile(sp, refs / dst)
     atomic_write_text(refs / "safety_policy.yaml", "patient_intake:\n  show_syndrome: false\n  show_formula: false\n  show_dosage: false\n  show_treatment_principle: false\n")
+    guideline = project_root() / "docs" / "genre_guideline_v1.0.md"
+    if guideline.exists():
+        shutil.copyfile(guideline, refs / "genre_guideline.md")
     for script_name, script in SCRIPT_TEMPLATES.items():
         script_path = scripts / script_name
         atomic_write_text(script_path, script)
