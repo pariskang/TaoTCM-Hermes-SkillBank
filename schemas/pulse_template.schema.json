@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "pulse_id",
+    "source_id",
+    "segment_id",
+    "definition",
+    "evidence"
+  ],
+  "properties": {
+    "pulse_id": {},
+    "source_id": {},
+    "segment_id": {},
+    "definition": {},
+    "evidence": {},
+    "dimension": {},
+    "polarity": {},
+    "differential_pairs": {},
+    "syndrome_associations": {},
+    "not_usable_for": {}
+  },
+  "additionalProperties": true
+}

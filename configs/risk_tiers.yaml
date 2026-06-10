@@ -1,0 +1,5 @@
+tiers:
+  T0: passive_info
+  T1: teaching_note
+  T2: soft_alert
+  T3: hard_stop_requires_human_audit
