@@ -87,6 +87,8 @@ Every exported skill package (`outputs/runs/<run>/skills/<skill_id>/`) carries `
 
 `promote` bumps the skill version, records lineage, and appends to the evolution log; `revise`/`reject`/`disputed` are recorded without granting stable status. No automated path can mark a skill stable.
 
+Promoted packages are protected: rebuilding a run whose skill package is already `stable` is refused (use a new run id), rebuilding an unpromoted package preserves its evolution log, and every fresh package links `lineage.parent_run` / `lineage.parent_stable_version` to the most recently promoted run of the same skill.
+
 ## Authoritative schemas and annotation guideline
 
 - `schemas/*.schema.json` — the authoritative draft-07 genre schemas (with cross-file `$ref` into `common.schema.json`): clause/treatise/formula/herb/pulse/case/commentary/mnemonic templates plus genre segmentation. Every annotation and every route is validated against them.

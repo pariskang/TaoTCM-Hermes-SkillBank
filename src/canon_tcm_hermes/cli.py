@@ -29,7 +29,19 @@ COMMANDS = [
 ]
 
 
+def _load_dotenv() -> None:
+    try:
+        from dotenv import find_dotenv, load_dotenv
+    except ImportError:
+        return
+    # Search for .env from the working directory upward (not from the
+    # installed package location); override=False (the default) keeps
+    # variables already exported in the shell winning over .env values.
+    load_dotenv(find_dotenv(usecwd=True))
+
+
 def main(argv: list[str] | None = None) -> None:
+    _load_dotenv()
     parser = argparse.ArgumentParser(prog="canon")
     sub = parser.add_subparsers(dest="cmd", required=True)
     for name in COMMANDS:
