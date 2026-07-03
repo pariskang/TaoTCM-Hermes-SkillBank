@@ -41,6 +41,21 @@ def test_commentary_quote_split_marks_dedup_target():
     assert r["cross_links"][0]["relation"] == "comments_on"
 
 
+def test_llm_router_overlapping_spans_fall_back_to_heuristic(monkeypatch):
+    from canon_tcm_hermes.router import genre_router
+
+    def overlapping(system_prompt, user_prompt, **kwargs):
+        return {"segments": [
+            {"span": [0, 20], "genre": "canonical_clause", "confidence": "high"},
+            {"span": [10, 30], "genre": "formula_entry", "confidence": "high"},
+        ]}
+
+    monkeypatch.setattr(genre_router, "complete_json", overlapping)
+    r = segment_row(row("太阳病，无汗而喘者，麻黄汤主之。麻黄三两桂枝二两，右二味，以水九升，煮取。"), use_llm=True)
+    assert r["annotation_meta"]["annotator_type"] == "heuristic"
+    assert any("overlapping spans" in flag for flag in r["annotation_meta"]["annotation_flags"])
+
+
 def test_route_output_matches_authoritative_schema():
     from canon_tcm_hermes.validators.schema_validator import schema_errors
 

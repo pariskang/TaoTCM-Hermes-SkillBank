@@ -196,7 +196,8 @@ def build_skill(run_id: str, skill_id: str, output_dir: str | Path = "outputs") 
             "loop": [
                 "add or revise rows in data.xlsx",
                 "canon all --input data.xlsx --run-id <new-run>",
-                "review audit_package.json",
+                "canon diff --run-id <new-run> --baseline <last-promoted-run>",
+                "review audit_package.json (delta_since_baseline scopes the review)",
                 "canon promote --run-id <new-run> --skill-id " + skill_id + " --decision promote --expert-id <id>",
             ],
             "evolution_log": ((existing or {}).get("evolution") or {}).get("evolution_log") or [],

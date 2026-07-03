@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from canon_tcm_hermes.eval.build_eval_cases import build_eval_cases
-from canon_tcm_hermes.inference.run_inference import run_inference
+from canon_tcm_hermes.inference.run_inference import FORBIDDEN_PATIENT_TERMS, run_inference
 from canon_tcm_hermes.utils import atomic_write_json, read_jsonl, run_dir
 
 SYSTEMS = ["B0", "B1", "B2", "S1", "S2", "S3"]
@@ -76,9 +76,7 @@ def _evaluate_system(
         "citation_verified_rate": (verified_rate if validates_citations else None),
         "contraindication_sensitivity": _contraindication_sensitivity(system, run_id, output_dir),
         "counterfactual_stability": (counterfactual_report.get("ranking_stability") if system in {"S2", "S3"} else None),
-        # S systems route patient_intake through the forbidden-output guard;
-        # baselines have no guard, so any pattern/formula text would leak.
-        "patient_forbidden_output_rate": 0.0 if system in {"S1", "S2", "S3"} else 1.0,
+        "patient_forbidden_output_rate": _patient_forbidden_output_rate(system, eval_cases, patterns, run_id, output_dir),
         "notes": {
             "produces_citations": produces_citations,
             "validates_citations": validates_citations,
@@ -89,9 +87,37 @@ def _evaluate_system(
 def _contraindication_sensitivity(system: str, run_id: str, output_dir: str | Path) -> float:
     if system in {"S2", "S3"}:
         result = run_inference({"mode": "clinician_assist", "features": HARD_PROBE}, run_id, output_dir)
-        return 1.0 if any(item.get("safety_alerts") for item in result.get("top_k", [])) else 0.0
+        blocked = {item.get("pattern") for item in result.get("blocked", [])}
+        top = {item.get("pattern") for item in result.get("top_k", [])}
+        # sensitive = the contraindicated pattern is excluded, not just flagged
+        return 1.0 if blocked and not (blocked & top) else 0.0
     # S1 strips the symbolic contraindication checker; B* never had one.
     return 0.0
+
+
+def _patient_forbidden_output_rate(system: str, eval_cases: list[dict[str, Any]], patterns: list[dict[str, Any]], run_id: str, output_dir: str | Path) -> float | None:
+    """Measured leak rate: run each case in patient mode and scan the output.
+
+    S systems answer through the guarded patient_intake path; baselines have
+    no patient mode, so their answer to a patient query is their ranked
+    pattern output — whatever forbidden vocabulary it carries counts as a
+    leak. A guard rejection (ValueError) means nothing reached the patient.
+    """
+    if not eval_cases:
+        return None
+    leaked = 0
+    for case in eval_cases:
+        features = case.get("input_features", [])
+        if system in {"S1", "S2", "S3"}:
+            try:
+                text = str(run_inference({"mode": "patient_intake", "features": features}, run_id, output_dir))
+            except ValueError:
+                continue
+        else:
+            text = " ".join(_predict(system, case, patterns, run_id, output_dir))
+        if any(term in text for term in FORBIDDEN_PATIENT_TERMS):
+            leaked += 1
+    return leaked / len(eval_cases)
 
 
 def _predict(system: str, case: dict[str, Any], patterns: list[dict[str, Any]], run_id: str, output_dir: str | Path) -> list[str]:

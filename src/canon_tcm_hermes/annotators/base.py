@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import copy
 import json
 import os
 import re
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +25,22 @@ from canon_tcm_hermes.validators.schema_validator import schema_errors
 
 GUIDELINE_VERSION = "v1.0"
 PROMPT_VERSION = "v2"
+
+
+@lru_cache(maxsize=None)
+def prompt_version(genre: str) -> str:
+    """Cache-key component derived from prompt file content.
+
+    Editing a genre prompt (or the shared _annotate_common.md) changes this
+    fingerprint and automatically invalidates cached LLM annotations for
+    that genre — no manual PROMPT_VERSION bump needed.
+    """
+    parts = [PROMPT_VERSION]
+    for name in (PROMPT_FILES.get(genre, ""), "_annotate_common.md"):
+        path = prompts_dir() / name if name else None
+        if path and path.exists():
+            parts.append(path.read_text(encoding="utf-8"))
+    return f"{PROMPT_VERSION}_" + sha1_text("\n".join(parts))[5:13]
 
 ANNOTATION_FILES = {
     "canonical_clause": "clause_templates.jsonl",
@@ -294,7 +312,20 @@ def llm_content(genre: str, row: dict[str, Any], segment: dict[str, Any], quote:
         f"segment_genre: {genre}" + (f" | sub_genre: {segment.get('sub_genre')}" if segment.get("sub_genre") else "") + "\n"
         f"span text:\n{quote}"
     )
-    data = complete_json(system_prompt, user_prompt)
+
+    def _validate(data: Any) -> list[str]:
+        # The raw LLM payload only becomes schema-valid after assemble()
+        # injects provenance, so validate the assembled probe — its schema
+        # diff is fed back to the model on retry.
+        if not isinstance(data, dict):
+            return [f"response must be a JSON object, got {type(data).__name__}"]
+        try:
+            probe = assemble(genre, row, segment, quote, copy.deepcopy(data), annotation_meta("llm"))
+        except Exception as exc:  # noqa: BLE001 — any assembly crash is retry feedback
+            return [f"content could not be assembled: {exc}"]
+        return schema_errors(probe, SCHEMA_FILES[genre])
+
+    data = complete_json(system_prompt, user_prompt, validate=_validate)
     if not isinstance(data, dict):
         raise LLMError(f"annotator LLM returned non-object: {type(data).__name__}")
     return data
@@ -531,17 +562,17 @@ def annotate_run(run_id: str, output_dir: str | Path = "outputs", use_llm: bool 
         input_hash = sha1_text(row["content"][start:end])
         job_id = f"{run_id}:annotate:{segment['segment_id']}"
         cache_path = cache_dir / (sha1_text(job_id)[5:25] + ".json") if cache_dir else None
-        if store and cache_path and cache_path.exists() and store.should_skip(job_id, input_hash, PROMPT_VERSION, GUIDELINE_VERSION):
+        if store and cache_path and cache_path.exists() and store.should_skip(job_id, input_hash, prompt_version(genre), GUIDELINE_VERSION):
             return segment, json.loads(cache_path.read_text(encoding="utf-8")), None
         try:
             ann = annotate_segment(row, segment, use_llm=use_llm)
             if store and cache_path and ann is not None:
                 atomic_write_json(cache_path, ann)
-                store.upsert_job(job_id=job_id, run_id=run_id, stage="annotate", source_id=row["source_id"], segment_id=segment["segment_id"], genre=genre, input_hash=input_hash, prompt_version=PROMPT_VERSION, schema_version=GUIDELINE_VERSION, status="done", attempts=1, output_path=str(cache_path), error="")
+                store.upsert_job(job_id=job_id, run_id=run_id, stage="annotate", source_id=row["source_id"], segment_id=segment["segment_id"], genre=genre, input_hash=input_hash, prompt_version=prompt_version(genre), schema_version=GUIDELINE_VERSION, status="done", attempts=1, output_path=str(cache_path), error="")
             return segment, ann, None
         except Exception as exc:
             if store:
-                store.upsert_job(job_id=job_id, run_id=run_id, stage="annotate", source_id=row["source_id"], segment_id=segment["segment_id"], genre=genre, input_hash=input_hash, prompt_version=PROMPT_VERSION, schema_version=GUIDELINE_VERSION, status="failed", attempts=1, output_path="", error=str(exc)[:500])
+                store.upsert_job(job_id=job_id, run_id=run_id, stage="annotate", source_id=row["source_id"], segment_id=segment["segment_id"], genre=genre, input_hash=input_hash, prompt_version=prompt_version(genre), schema_version=GUIDELINE_VERSION, status="failed", attempts=1, output_path="", error=str(exc)[:500])
             return segment, None, str(exc)
 
     if use_llm and len(jobs) > 1:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 
 from canon_tcm_hermes.annotators.base import annotate_run
 from canon_tcm_hermes.builders.audit_package_builder import build_audit_package
@@ -13,6 +14,7 @@ from canon_tcm_hermes.eval.build_eval_cases import build_eval_cases
 from canon_tcm_hermes.eval.run_ablation import run_ablation
 from canon_tcm_hermes.eval.run_counterfactual_tests import run_counterfactual
 from canon_tcm_hermes.governance.promotion import promote_version
+from canon_tcm_hermes.governance.run_diff import build_run_diff
 from canon_tcm_hermes.io.excel_loader import load_excel
 from canon_tcm_hermes.router.genre_router import route_rows, route_run
 from canon_tcm_hermes.utils import ensure_dir, run_dir
@@ -25,7 +27,7 @@ DEFAULT_SKILL_ID = "shanghan_six_formula_cluster"
 COMMANDS = [
     "init", "make-demo", "route", "annotate", "validate", "build-graph", "build-patterns",
     "compile-inference", "build-skill", "build-audit", "eval-counterfactual", "build-eval",
-    "eval-ablation", "export-codex", "assess", "promote", "all", "build",
+    "eval-ablation", "export-codex", "assess", "promote", "diff", "all", "build",
 ]
 
 
@@ -58,6 +60,8 @@ def main(argv: list[str] | None = None) -> None:
             p.add_argument("--expert-id", required=True)
             p.add_argument("--approved-version", default="1.0.0")
             p.add_argument("--reason", default="")
+        if name == "diff":
+            p.add_argument("--baseline", required=True, help="baseline run id to diff against (e.g. the last promoted run)")
     args = parser.parse_args(argv)
 
     if args.cmd == "init":
@@ -110,6 +114,10 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.cmd == "assess":
         assess_protocol(args.run_id, args.output_dir)
+        return
+    if args.cmd == "diff":
+        report = build_run_diff(args.run_id, args.baseline, args.output_dir, skill_id=args.skill_id)
+        print(json.dumps({"summary": report["summary"], "audit_focus": report["audit_focus"]}, ensure_ascii=False, indent=2))
         return
     if args.cmd == "promote":
         record = promote_version(

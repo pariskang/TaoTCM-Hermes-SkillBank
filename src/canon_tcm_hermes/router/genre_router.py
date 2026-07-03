@@ -144,6 +144,9 @@ def _llm_segments(row: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[
     if not segments:
         raise LLMError("router LLM returned no segments")
     segments.sort(key=lambda s: s["span"][0])
+    for prev, cur in zip(segments, segments[1:]):
+        if cur["span"][0] < prev["span"][1]:
+            raise LLMError(f"overlapping spans from router LLM: {prev['span']} vs {cur['span']}")
     links = []
     for link in data.get("cross_links", []):
         relation = link.get("relation")

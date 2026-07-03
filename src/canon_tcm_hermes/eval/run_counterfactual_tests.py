@@ -48,14 +48,18 @@ def run_counterfactual(run_id: str, output_dir: str | Path = "outputs") -> dict[
         cases.append({"a": left, "b": right, "top_a": left_top, "top_b": right_top, "ranking_a": _ranking(left_result), "ranking_b": _ranking(right_result), "changed": changed})
     hard_payload = {"mode": "clinician_assist", "features": ["脉微弱", "汗出", "恶风", "无汗"]}
     hard_result = run_inference(hard_payload, run_id, output_dir)
-    hard_stop_hit = any(item.get("safety_alerts") for item in hard_result.get("top_k", []))
+    blocked_patterns = {item.get("pattern") for item in hard_result.get("blocked", [])}
+    top_patterns = {item.get("pattern") for item in hard_result.get("top_k", [])}
+    # consistency = the contraindicated pattern is actually removed from the
+    # recommendation list, not just annotated with an alert
+    hard_stop_hit = bool(blocked_patterns) and not (blocked_patterns & top_patterns)
     report = {
         "counterfactual_pairs": cases,
         # pass = the engine reacts to the flipped feature (ranking or support changes)
         "counterfactual_pass_rate": changed_count / max(len(PAIRS), 1),
         "ranking_stability": 1 - (changed_count / max(len(PAIRS), 1)),
         "hard_stop_consistency": 1.0 if hard_stop_hit else 0.0,
-        "hard_stop_case": {"payload": hard_payload, "alerts_triggered": hard_stop_hit},
+        "hard_stop_case": {"payload": hard_payload, "blocked_patterns": sorted(blocked_patterns), "alerts_triggered": hard_stop_hit},
     }
     atomic_write_json(run_dir(run_id, output_dir) / "reports" / "counterfactual_report.json", report)
     return report

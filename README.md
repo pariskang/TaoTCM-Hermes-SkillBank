@@ -69,6 +69,7 @@ canon eval-counterfactual --run-id run001
 canon build-eval --run-id run001
 canon eval-ablation --run-id run001
 canon assess --run-id run001
+canon diff --run-id run002 --baseline run001               # delta audit vs. the last audited run
 canon all --input data/raw/data.xlsx --run-id run001
 canon promote --run-id run001 --skill-id shanghan_six_formula_cluster \
       --decision promote --expert-id <id> --approved-version 1.0.0
@@ -81,9 +82,12 @@ Every exported skill package (`outputs/runs/<run>/skills/<skill_id>/`) carries `
 ```text
 1. add/revise rows in data.xlsx
 2. canon all --input data.xlsx --run-id <new-run>
-3. review outputs/runs/<new-run>/audit/audit_package.json
-4. canon promote --run-id <new-run> --skill-id <skill> --decision promote --expert-id <id>
+3. canon diff --run-id <new-run> --baseline <last-promoted-run>   # optional but recommended
+4. review outputs/runs/<new-run>/audit/audit_package.json
+5. canon promote --run-id <new-run> --skill-id <skill> --decision promote --expert-id <id>
 ```
+
+`canon diff` writes `reports/run_diff_report.json` — a delta audit against the baseline run: patterns added/removed/changed (safety-field changes flagged high priority), evidence added/removed/re-verified, and eval-metric regressions (hard-stop consistency, patient forbidden-output rate, citation rate). Rebuilding the audit package after a diff embeds the delta as `delta_since_baseline`, so the terminal human audit reviews what changed instead of re-reading the whole package. Promotion itself requires the audit package to exist and the approved version to be strictly greater than the current one.
 
 `promote` bumps the skill version, records lineage, and appends to the evolution log; `revise`/`reject`/`disputed` are recorded without granting stable status. No automated path can mark a skill stable.
 
@@ -102,4 +106,4 @@ Promoted packages are protected: rebuilding a run whose skill package is already
 
 ## Safety
 
-This project does not provide patient-facing diagnosis, syndrome suggestions, formula recommendations, dosage advice, self-medication advice, or medication stop/change advice. Patient intake mode is limited to red-flag triage, structured questions, and visit summaries, and is guarded by a content-level forbidden-output check (formula/syndrome/dosage vocabulary can never appear in patient responses). Dose conversion to modern units is structurally forbidden (`dose_conversion_modern.status = not_attempted`). Contraindication rules are T3 and hard-stop in the inference engine.
+This project does not provide patient-facing diagnosis, syndrome suggestions, formula recommendations, dosage advice, self-medication advice, or medication stop/change advice. Patient intake mode is limited to red-flag triage, structured questions, and visit summaries, and is guarded by a content-level forbidden-output check (formula/syndrome/dosage vocabulary can never appear in patient responses). Dose conversion to modern units is structurally forbidden (`dose_conversion_modern.status = not_attempted`). Contraindication rules are T3 and hard-stop in the inference engine: a pattern whose hard-stop condition matches is removed from the ranked recommendations entirely and surfaced in a separate `blocked` list with its safety alerts; softer matched rules stay as alerts on the ranked results. The ablation report's patient forbidden-output rate is measured by probing each eval case through the patient path, not assumed.
