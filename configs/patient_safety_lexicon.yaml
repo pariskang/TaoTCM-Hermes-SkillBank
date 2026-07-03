@@ -1,0 +1,34 @@
+# Content-level forbidden vocabulary for patient_intake responses.
+#
+# Terms listed here EXTEND the built-in floor defined in
+# src/canon_tcm_hermes/inference/run_inference.py. The built-in terms can
+# never be removed through this file (fail-closed safety floor); this file
+# only widens the net. Override the file location with the
+# TAOTCM_PATIENT_LEXICON environment variable.
+forbidden_terms:
+  # dosage forms beyond the built-in 汤/散/丸
+  - 饮
+  - 飲
+  - 膏
+  - 丹
+  # dosage units beyond the built-in 两/钱
+  - 铢
+  - 銖
+  - 毫升
+  - 每日三次
+  - 每日两次
+  # prescribing / medication-change phrasing
+  - 主之
+  - 宜服
+  - 可服
+  - 煎服
+  - 冲服
+  - 送服
+  - 停药
+  - 停藥
+  - 加减方
+  - 加減方
+forbidden_keys:
+  - prescription
+  - herb_list
+  - dose

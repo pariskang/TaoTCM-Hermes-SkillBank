@@ -213,7 +213,20 @@ def build_skill(run_id: str, skill_id: str, output_dir: str | Path = "outputs") 
         sp = rd / src
         if sp.exists():
             shutil.copyfile(sp, refs / dst)
-    atomic_write_text(refs / "safety_policy.yaml", "patient_intake:\n  show_syndrome: false\n  show_formula: false\n  show_dosage: false\n  show_treatment_principle: false\n")
+    from canon_tcm_hermes.inference.run_inference import patient_forbidden_keys, patient_forbidden_terms
+
+    safety_policy = {
+        "patient_intake": {
+            "show_syndrome": False,
+            "show_formula": False,
+            "show_dosage": False,
+            "show_treatment_principle": False,
+        },
+        # effective lexicon at build time: built-in floor + configs/patient_safety_lexicon.yaml
+        "forbidden_patient_terms": patient_forbidden_terms(),
+        "forbidden_patient_keys": patient_forbidden_keys(),
+    }
+    atomic_write_text(refs / "safety_policy.yaml", yaml.safe_dump(safety_policy, allow_unicode=True, sort_keys=False))
     guideline = project_root() / "docs" / "genre_guideline_v1.0.md"
     if guideline.exists():
         shutil.copyfile(guideline, refs / "genre_guideline.md")

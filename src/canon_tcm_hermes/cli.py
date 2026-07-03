@@ -27,7 +27,7 @@ DEFAULT_SKILL_ID = "shanghan_six_formula_cluster"
 COMMANDS = [
     "init", "make-demo", "route", "annotate", "validate", "build-graph", "build-patterns",
     "compile-inference", "build-skill", "build-audit", "eval-counterfactual", "build-eval",
-    "eval-ablation", "export-codex", "assess", "promote", "diff", "all", "build",
+    "eval-ablation", "export", "export-codex", "assess", "promote", "diff", "all", "build",
 ]
 
 
@@ -62,6 +62,10 @@ def main(argv: list[str] | None = None) -> None:
             p.add_argument("--reason", default="")
         if name == "diff":
             p.add_argument("--baseline", required=True, help="baseline run id to diff against (e.g. the last promoted run)")
+        if name == "export":
+            p.add_argument("--targets", default="", help="comma-separated export targets (claude,codex,openclaw,lobechat); default: configs/export_targets.yaml")
+        if name in {"eval-ablation", "all", "build"}:
+            p.add_argument("--llm-baselines", dest="llm_baselines", action="store_true", default=None, help="run B0-B2 as real LLM/RAG baselines (requires LITELLM_MODEL; default: TAOTCM_LLM_BASELINES env)")
     args = parser.parse_args(argv)
 
     if args.cmd == "init":
@@ -97,8 +101,18 @@ def main(argv: list[str] | None = None) -> None:
         build_context_state(args.run_id, args.output_dir)
         build_inference_config(args.run_id, args.skill_id, args.output_dir)
         return
-    if args.cmd in {"build-skill", "export-codex"}:
+    if args.cmd == "build-skill":
         build_skill(args.run_id, args.skill_id, args.output_dir)
+        return
+    if args.cmd in {"export", "export-codex"}:
+        from canon_tcm_hermes.exporters import export_skill_targets
+
+        package = run_dir(args.run_id, args.output_dir) / "skills" / args.skill_id / "skill.yaml"
+        if not package.exists():
+            build_skill(args.run_id, args.skill_id, args.output_dir)
+        targets = ["codex"] if args.cmd == "export-codex" else [t.strip() for t in args.targets.split(",") if t.strip()] or None
+        results = export_skill_targets(args.run_id, args.skill_id, targets, args.output_dir)
+        print(json.dumps(results, ensure_ascii=False, indent=2))
         return
     if args.cmd == "build-audit":
         build_audit_package(args.run_id, args.skill_id, args.output_dir)
@@ -110,7 +124,7 @@ def main(argv: list[str] | None = None) -> None:
         build_eval_cases(args.run_id, args.output_dir)
         return
     if args.cmd == "eval-ablation":
-        run_ablation(args.run_id, args.output_dir)
+        run_ablation(args.run_id, args.output_dir, llm_baselines=args.llm_baselines)
         return
     if args.cmd == "assess":
         assess_protocol(args.run_id, args.output_dir)
@@ -139,7 +153,7 @@ def main(argv: list[str] | None = None) -> None:
         build_inference_config(args.run_id, args.skill_id, args.output_dir)
         build_eval_cases(args.run_id, args.output_dir)
         run_counterfactual(args.run_id, args.output_dir)
-        run_ablation(args.run_id, args.output_dir)
+        run_ablation(args.run_id, args.output_dir, llm_baselines=args.llm_baselines)
         build_skill(args.run_id, args.skill_id, args.output_dir)
         build_audit_package(args.run_id, args.skill_id, args.output_dir)
         run_validation(args.run_id, args.output_dir, args.skill_id)

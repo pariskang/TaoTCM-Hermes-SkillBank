@@ -5,33 +5,47 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from canon_tcm_hermes.eval.baseline_adapters import llm_baselines_enabled, predict_baseline
 from canon_tcm_hermes.eval.build_eval_cases import build_eval_cases
-from canon_tcm_hermes.inference.run_inference import FORBIDDEN_PATIENT_TERMS, run_inference
+from canon_tcm_hermes.inference.run_inference import patient_forbidden_terms, run_inference
+from canon_tcm_hermes.llm.litellm_client import LLMError
 from canon_tcm_hermes.utils import atomic_write_json, read_jsonl, run_dir
 
 SYSTEMS = ["B0", "B1", "B2", "S1", "S2", "S3"]
+BASELINE_SYSTEMS = {"B0", "B1", "B2"}
 HARD_PROBE = ["脉微弱", "汗出", "恶风", "无汗"]
 
+PROXY_NOTE = (
+    "B0/B1/B2 are deterministic local proxies (no gold-label leakage): "
+    "B0 = context-free majority guess, B1 = lexical retrieval, B2 = lexical + structure-aware retrieval. "
+    "S1 removes symbolic gating/contraindication, S2 removes citation validation, S3 is the full system. "
+    "Enable real LLM/RAG baselines with --llm-baselines (or TAOTCM_LLM_BASELINES=1) and a configured LITELLM_MODEL."
+)
+LLM_NOTE = (
+    "B0/B1/B2 ran as real LLM baselines over a shared closed candidate set: "
+    "B0 = bare LLM (features only), B1 = naive RAG (lexically retrieved quotes), B2 = graph RAG (pattern subgraphs + linked evidence). "
+    "B1/B2 must return the evidence ids they relied on, so their citation rates are measured, not imputed. "
+    "Cases where the LLM call exhausted its retry budget fell back to the deterministic proxy (see llm_fallback_cases)."
+)
 
-def run_ablation(run_id: str, output_dir: str | Path = "outputs") -> dict[str, Any]:
+
+def run_ablation(run_id: str, output_dir: str | Path = "outputs", llm_baselines: bool | None = None) -> dict[str, Any]:
     rd = run_dir(run_id, output_dir)
     eval_cases = read_jsonl(rd / "eval" / "eval_cases.jsonl") or build_eval_cases(run_id, output_dir)
     patterns = read_jsonl(rd / "patterns" / "pattern_aggregations.jsonl")
+    evidence = read_jsonl(rd / "evidence" / "evidence_index.jsonl")
     citation_report = _read_json(rd / "reports" / "citation_validation_report.json")
     counterfactual_report = _read_json(rd / "reports" / "counterfactual_report.json")
+    use_llm_baselines = llm_baselines_enabled(llm_baselines)
     systems = {
-        system: _evaluate_system(system, eval_cases, patterns, run_id, output_dir, citation_report, counterfactual_report)
+        system: _evaluate_system(system, eval_cases, patterns, evidence, run_id, output_dir, citation_report, counterfactual_report, use_llm_baselines)
         for system in SYSTEMS
     }
     scored = {name: m for name, m in systems.items() if m["top1_pattern_accuracy"] is not None}
     report = {
-        "status": "completed_deterministic_local_ablation",
-        "note": (
-            "B0/B1/B2 are deterministic local proxies (no gold-label leakage): "
-            "B0 = context-free majority guess, B1 = lexical retrieval, B2 = lexical + structure-aware retrieval. "
-            "S1 removes symbolic gating/contraindication, S2 removes citation validation, S3 is the full system. "
-            "Replace proxies with external LLM/RAG runners for publication-grade experiments."
-        ),
+        "status": "completed_llm_baseline_ablation" if use_llm_baselines else "completed_deterministic_local_ablation",
+        "baseline_mode": "llm_adapter" if use_llm_baselines else "deterministic_proxy",
+        "note": LLM_NOTE if use_llm_baselines else PROXY_NOTE,
         "eval_case_count": len(eval_cases),
         "systems": systems,
         "best_system_by_top1": max(scored, key=lambda name: scored[name]["top1_pattern_accuracy"]) if scored else None,
@@ -44,10 +58,12 @@ def _evaluate_system(
     system: str,
     eval_cases: list[dict[str, Any]],
     patterns: list[dict[str, Any]],
+    evidence: list[dict[str, Any]],
     run_id: str,
     output_dir: str | Path,
     citation_report: dict[str, Any],
     counterfactual_report: dict[str, Any],
+    use_llm_baselines: bool,
 ) -> dict[str, Any]:
     if not eval_cases:
         return {metric: None for metric in [
@@ -55,32 +71,67 @@ def _evaluate_system(
             "citation_verified_rate", "contraindication_sensitivity", "counterfactual_stability",
             "patient_forbidden_output_rate",
         ]}
+    llm_mode = use_llm_baselines and system in BASELINE_SYSTEMS
+    evidence_by_id = {str(item.get("evidence_id")): item for item in evidence}
     top1 = 0
     top3 = 0
+    fallbacks = 0
+    cited_total = cited_known = cited_verified = 0
     for case in eval_cases:
         expected = set(case.get("expected_patterns", []))
-        predicted = _predict(system, case, patterns, run_id, output_dir)
+        citations: list[str] | None = None
+        if llm_mode:
+            try:
+                result = predict_baseline(system, case, patterns, evidence)
+                predicted = result["patterns"]
+                citations = result["citations"]
+            except LLMError:
+                fallbacks += 1
+                predicted = _predict(system, case, patterns, run_id, output_dir)
+        else:
+            predicted = _predict(system, case, patterns, run_id, output_dir)
         if predicted and predicted[0] in expected:
             top1 += 1
         if expected & set(predicted[:3]):
             top3 += 1
-    produces_citations = system in {"S1", "S2", "S3"}
+        for cited in citations or []:
+            cited_total += 1
+            item = evidence_by_id.get(cited)
+            if item is not None:
+                cited_known += 1
+                if item.get("verification_status") == "verified":
+                    cited_verified += 1
+    produces_citations = system in {"S1", "S2", "S3"} or (llm_mode and system in {"B1", "B2"})
     validates_citations = system in {"S1", "S3"}
     verified_rate = citation_report.get("verified_rate")
+    if validates_citations and verified_rate is not None:
+        hallucinated = max(0.0, 1.0 - verified_rate)
+        cited_rate: float | None = verified_rate
+    elif cited_total:
+        # LLM baseline citations measured against the run's evidence index
+        hallucinated = (cited_total - cited_known) / cited_total
+        cited_rate = cited_verified / cited_total
+    else:
+        # B* proxies emit no citations at all; S2 emits citations but skips
+        # verification, so its hallucination rate is unobservable by design.
+        hallucinated = None
+        cited_rate = None
+    notes: dict[str, Any] = {
+        "mode": ("llm_adapter" if llm_mode else ("deterministic_proxy" if system in BASELINE_SYSTEMS else "local_system")),
+        "produces_citations": produces_citations,
+        "validates_citations": validates_citations,
+    }
+    if llm_mode:
+        notes["llm_fallback_cases"] = fallbacks
     return {
         "top1_pattern_accuracy": top1 / len(eval_cases),
         "top3_pattern_accuracy": top3 / len(eval_cases),
-        # B* baselines emit no citations at all; S2 emits citations but skips
-        # verification, so its hallucination rate is unobservable by design.
-        "hallucinated_citation_rate": (max(0.0, 1.0 - verified_rate) if (validates_citations and verified_rate is not None) else None),
-        "citation_verified_rate": (verified_rate if validates_citations else None),
+        "hallucinated_citation_rate": hallucinated,
+        "citation_verified_rate": cited_rate,
         "contraindication_sensitivity": _contraindication_sensitivity(system, run_id, output_dir),
         "counterfactual_stability": (counterfactual_report.get("ranking_stability") if system in {"S2", "S3"} else None),
         "patient_forbidden_output_rate": _patient_forbidden_output_rate(system, eval_cases, patterns, run_id, output_dir),
-        "notes": {
-            "produces_citations": produces_citations,
-            "validates_citations": validates_citations,
-        },
+        "notes": notes,
     }
 
 
@@ -115,7 +166,7 @@ def _patient_forbidden_output_rate(system: str, eval_cases: list[dict[str, Any]]
                 continue
         else:
             text = " ".join(_predict(system, case, patterns, run_id, output_dir))
-        if any(term in text for term in FORBIDDEN_PATIENT_TERMS):
+        if any(term in text for term in patient_forbidden_terms()):
             leaked += 1
     return leaked / len(eval_cases)
 
