@@ -69,6 +69,10 @@ canon eval-counterfactual --run-id run001
 canon build-eval --run-id run001
 canon eval-ablation --run-id run001
 canon assess --run-id run001
+canon eval-attribution --run-id run001                     # counterfactual citation-faithfulness test
+canon conformal --run-id run001 --alpha 0.1                # conformal prediction sets + abstention
+canon calibrate-router --gold gold.jsonl --run-id run001   # micro-gold Po/kappa + span F1
+canon model-card --run-id run001                           # TRIPOD-LLM-style model card
 canon diff --run-id run002 --baseline run001               # delta audit vs. the last audited run
 canon export --run-id run001 [--targets claude,codex,openclaw,lobechat]
 canon all --input data/raw/data.xlsx --run-id run001 [--llm-baselines]
@@ -115,6 +119,7 @@ Every export carries a manifest recording the source skill version and status; e
 - Counterfactual pairs compare ranking signatures (pattern + support level), not raw payloads, so the pass rate reflects real sensitivity to flipped features.
 - Ablation baselines B0/B1/B2 are deterministic local proxies by default with **no gold-label leakage** (majority guess / lexical retrieval / structure-aware retrieval). For publication-grade studies, run `canon eval-ablation --llm-baselines` (or set `TAOTCM_LLM_BASELINES=1`) with a configured `LITELLM_MODEL`: B0 becomes a bare closed-set LLM classifier, B1 a naive-RAG prompt over lexically retrieved quotes, and B2 a graph-RAG prompt over pattern subgraphs with linked evidence. LLM-mode B1/B2 must return the evidence ids they relied on, so their hallucinated/verified citation rates are measured against the run's evidence index; metrics a system cannot produce (e.g. citation rates for the proxies, which emit no citations) are reported as `null`, not invented. Failed LLM calls fall back per-case to the deterministic proxy and are counted in `llm_fallback_cases`.
 - `canon assess --run-id <run>` writes `protocol_assessment_report.json` listing remaining gaps (micro-gold calibration, expert audit, etc.). The system is not claimed stable-grade by default.
+- Publication-grade reporting (see `docs/METHODS.md` for the research grounding): the ablation report carries bootstrap 95% CIs, paired permutation tests with Holm–Bonferroni correction, and a risk–coverage/AURC selective-prediction block; `canon conformal` produces distribution-free prediction sets with explicit abstention (vacuous small-n calibrations are reported as vacuous); `canon eval-attribution` tests citation *faithfulness* by intervention (feature necessity + evidence grounding), not just citation correctness; `canon calibrate-router` measures router quality against human micro-gold (Po + Cohen's κ, exact/relaxed span F1, κ≥0.8 gate); `canon model-card` renders a TRIPOD-LLM-style model card from run artifacts.
 
 ## Safety
 

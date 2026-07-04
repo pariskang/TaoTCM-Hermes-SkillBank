@@ -7,6 +7,7 @@ from typing import Any
 
 from canon_tcm_hermes.eval.baseline_adapters import llm_baselines_enabled, predict_baseline
 from canon_tcm_hermes.eval.build_eval_cases import build_eval_cases
+from canon_tcm_hermes.eval.statistics import bootstrap_ci, holm_bonferroni, paired_permutation_test, risk_coverage_curve
 from canon_tcm_hermes.inference.run_inference import patient_forbidden_terms, run_inference
 from canon_tcm_hermes.llm.litellm_client import LLMError
 from canon_tcm_hermes.utils import atomic_write_json, read_jsonl, run_dir
@@ -37,10 +38,14 @@ def run_ablation(run_id: str, output_dir: str | Path = "outputs", llm_baselines:
     citation_report = _read_json(rd / "reports" / "citation_validation_report.json")
     counterfactual_report = _read_json(rd / "reports" / "counterfactual_report.json")
     use_llm_baselines = llm_baselines_enabled(llm_baselines)
-    systems = {
-        system: _evaluate_system(system, eval_cases, patterns, evidence, run_id, output_dir, citation_report, counterfactual_report, use_llm_baselines)
-        for system in SYSTEMS
-    }
+    systems: dict[str, dict[str, Any]] = {}
+    per_case_top1: dict[str, list[float]] = {}
+    per_case_confidence: dict[str, list[float | None]] = {}
+    for system in SYSTEMS:
+        metrics, per_case = _evaluate_system(system, eval_cases, patterns, evidence, run_id, output_dir, citation_report, counterfactual_report, use_llm_baselines)
+        systems[system] = metrics
+        per_case_top1[system] = per_case["top1"]
+        per_case_confidence[system] = per_case["confidence"]
     scored = {name: m for name, m in systems.items() if m["top1_pattern_accuracy"] is not None}
     report = {
         "status": "completed_llm_baseline_ablation" if use_llm_baselines else "completed_deterministic_local_ablation",
@@ -50,6 +55,24 @@ def run_ablation(run_id: str, output_dir: str | Path = "outputs", llm_baselines:
         "systems": systems,
         "best_system_by_top1": max(scored, key=lambda name: scored[name]["top1_pattern_accuracy"]) if scored else None,
     }
+    if eval_cases:
+        comparisons = {name: paired_permutation_test(per_case_top1["S3"], per_case_top1[name]) for name in SYSTEMS if name != "S3"}
+        corrected = holm_bonferroni({name: comparison["p_value"] for name, comparison in comparisons.items()})
+        for name, comparison in comparisons.items():
+            comparison.update(corrected[name])
+        report["statistics"] = {
+            "n_cases": len(eval_cases),
+            "config": {"method": "percentile bootstrap + paired sign-flip permutation test + Holm-Bonferroni", "bootstrap_samples": 2000, "permutation_rounds": 5000, "seed": 13, "ci_level": 0.95},
+            "top1_ci95": {name: bootstrap_ci(per_case_top1[name]) for name in SYSTEMS},
+            "s3_vs_others_top1": comparisons,
+            "caveat": "Computed over this run's eval cases; with few cases the intervals are wide and tests inconclusive by design — expand the case corpus before making publication claims.",
+        }
+        s3_confidence = per_case_confidence["S3"]
+        if s3_confidence and all(value is not None for value in s3_confidence):
+            report["selective_prediction_s3"] = {
+                **risk_coverage_curve(per_case_top1["S3"], [float(v) for v in s3_confidence if v is not None]),
+                "confidence_signal": "score_margin_top1_minus_top2",
+            }
     atomic_write_json(rd / "reports" / "ablation_report.json", report)
     return report
 
@@ -64,22 +87,25 @@ def _evaluate_system(
     citation_report: dict[str, Any],
     counterfactual_report: dict[str, Any],
     use_llm_baselines: bool,
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], dict[str, list[Any]]]:
     if not eval_cases:
-        return {metric: None for metric in [
+        empty = {metric: None for metric in [
             "top1_pattern_accuracy", "top3_pattern_accuracy", "hallucinated_citation_rate",
             "citation_verified_rate", "contraindication_sensitivity", "counterfactual_stability",
             "patient_forbidden_output_rate",
         ]}
+        return empty, {"top1": [], "top3": [], "confidence": []}
     llm_mode = use_llm_baselines and system in BASELINE_SYSTEMS
     evidence_by_id = {str(item.get("evidence_id")): item for item in evidence}
     top1 = 0
     top3 = 0
     fallbacks = 0
     cited_total = cited_known = cited_verified = 0
+    per_case: dict[str, list[Any]] = {"top1": [], "top3": [], "confidence": []}
     for case in eval_cases:
         expected = set(case.get("expected_patterns", []))
         citations: list[str] | None = None
+        confidence: float | None = None
         if llm_mode:
             try:
                 result = predict_baseline(system, case, patterns, evidence)
@@ -88,12 +114,21 @@ def _evaluate_system(
             except LLMError:
                 fallbacks += 1
                 predicted = _predict(system, case, patterns, run_id, output_dir)
+        elif system in {"S2", "S3"}:
+            ranked = run_inference({"mode": "clinician_assist", "features": case.get("input_features", []), "context": case.get("context", {})}, run_id, output_dir).get("top_k", [])
+            predicted = [item.get("pattern") for item in ranked if item.get("pattern")][:3]
+            if ranked:
+                second = ranked[1].get("score", 0.0) if len(ranked) > 1 else 0.0
+                confidence = float(ranked[0].get("score", 0.0)) - float(second)
         else:
             predicted = _predict(system, case, patterns, run_id, output_dir)
-        if predicted and predicted[0] in expected:
-            top1 += 1
-        if expected & set(predicted[:3]):
-            top3 += 1
+        case_top1 = 1.0 if (predicted and predicted[0] in expected) else 0.0
+        case_top3 = 1.0 if (expected & set(predicted[:3])) else 0.0
+        top1 += int(case_top1)
+        top3 += int(case_top3)
+        per_case["top1"].append(case_top1)
+        per_case["top3"].append(case_top3)
+        per_case["confidence"].append(confidence)
         for cited in citations or []:
             cited_total += 1
             item = evidence_by_id.get(cited)
@@ -123,7 +158,7 @@ def _evaluate_system(
     }
     if llm_mode:
         notes["llm_fallback_cases"] = fallbacks
-    return {
+    metrics = {
         "top1_pattern_accuracy": top1 / len(eval_cases),
         "top3_pattern_accuracy": top3 / len(eval_cases),
         "hallucinated_citation_rate": hallucinated,
@@ -133,6 +168,7 @@ def _evaluate_system(
         "patient_forbidden_output_rate": _patient_forbidden_output_rate(system, eval_cases, patterns, run_id, output_dir),
         "notes": notes,
     }
+    return metrics, per_case
 
 
 def _contraindication_sensitivity(system: str, run_id: str, output_dir: str | Path) -> float:

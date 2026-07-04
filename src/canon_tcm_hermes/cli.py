@@ -12,9 +12,12 @@ from canon_tcm_hermes.builders.knowledge_graph_builder import build_knowledge_gr
 from canon_tcm_hermes.builders.pattern_aggregator import build_patterns
 from canon_tcm_hermes.eval.build_eval_cases import build_eval_cases
 from canon_tcm_hermes.eval.run_ablation import run_ablation
+from canon_tcm_hermes.eval.run_attribution import run_attribution
 from canon_tcm_hermes.eval.run_counterfactual_tests import run_counterfactual
+from canon_tcm_hermes.governance.model_card import build_model_card
 from canon_tcm_hermes.governance.promotion import promote_version
 from canon_tcm_hermes.governance.run_diff import build_run_diff
+from canon_tcm_hermes.inference.conformal import run_conformal_report
 from canon_tcm_hermes.io.excel_loader import load_excel
 from canon_tcm_hermes.router.genre_router import route_rows, route_run
 from canon_tcm_hermes.utils import ensure_dir, run_dir
@@ -27,7 +30,8 @@ DEFAULT_SKILL_ID = "shanghan_six_formula_cluster"
 COMMANDS = [
     "init", "make-demo", "route", "annotate", "validate", "build-graph", "build-patterns",
     "compile-inference", "build-skill", "build-audit", "eval-counterfactual", "build-eval",
-    "eval-ablation", "export", "export-codex", "assess", "promote", "diff", "all", "build",
+    "eval-ablation", "eval-attribution", "conformal", "calibrate-router", "model-card",
+    "export", "export-codex", "assess", "promote", "diff", "all", "build",
 ]
 
 
@@ -66,6 +70,10 @@ def main(argv: list[str] | None = None) -> None:
             p.add_argument("--targets", default="", help="comma-separated export targets (claude,codex,openclaw,lobechat); default: configs/export_targets.yaml")
         if name in {"eval-ablation", "all", "build"}:
             p.add_argument("--llm-baselines", dest="llm_baselines", action="store_true", default=None, help="run B0-B2 as real LLM/RAG baselines (requires LITELLM_MODEL; default: TAOTCM_LLM_BASELINES env)")
+        if name in {"conformal", "all", "build"}:
+            p.add_argument("--alpha", type=float, default=0.1, help="conformal miscoverage level (coverage target = 1 - alpha)")
+        if name == "calibrate-router":
+            p.add_argument("--gold", required=True, help="micro-gold JSONL: {content, book, chapter, segments:[{span,genre}]} per line")
     args = parser.parse_args(argv)
 
     if args.cmd == "init":
@@ -126,6 +134,23 @@ def main(argv: list[str] | None = None) -> None:
     if args.cmd == "eval-ablation":
         run_ablation(args.run_id, args.output_dir, llm_baselines=args.llm_baselines)
         return
+    if args.cmd == "eval-attribution":
+        report = run_attribution(args.run_id, args.output_dir)
+        print(json.dumps({"feature_necessity_rate": report["feature_necessity_rate"], "evidence_grounding_rate": report["evidence_grounding_rate"]}, ensure_ascii=False))
+        return
+    if args.cmd == "conformal":
+        report = run_conformal_report(args.run_id, args.output_dir, alpha=args.alpha)
+        print(json.dumps({k: report[k] for k in ["empirical_coverage_in_sample", "average_set_size", "abstention_rate"]}, ensure_ascii=False))
+        return
+    if args.cmd == "calibrate-router":
+        from canon_tcm_hermes.validators.router_calibration import calibrate_router
+
+        report = calibrate_router(args.gold, run_id=args.run_id, output_dir=args.output_dir, use_llm=args.use_llm)
+        print(json.dumps({"primary_genre": report["primary_genre"], "spans": report["spans"], "calibration_gate": report["calibration_gate"]}, ensure_ascii=False, indent=2))
+        return
+    if args.cmd == "model-card":
+        print(build_model_card(args.run_id, args.skill_id, args.output_dir))
+        return
     if args.cmd == "assess":
         assess_protocol(args.run_id, args.output_dir)
         return
@@ -154,10 +179,13 @@ def main(argv: list[str] | None = None) -> None:
         build_eval_cases(args.run_id, args.output_dir)
         run_counterfactual(args.run_id, args.output_dir)
         run_ablation(args.run_id, args.output_dir, llm_baselines=args.llm_baselines)
+        run_attribution(args.run_id, args.output_dir)
+        run_conformal_report(args.run_id, args.output_dir, alpha=args.alpha)
         build_skill(args.run_id, args.skill_id, args.output_dir)
         build_audit_package(args.run_id, args.skill_id, args.output_dir)
         run_validation(args.run_id, args.output_dir, args.skill_id)
         assess_protocol(args.run_id, args.output_dir)
+        build_model_card(args.run_id, args.skill_id, args.output_dir)
         print(run_dir(args.run_id, args.output_dir))
 
 
