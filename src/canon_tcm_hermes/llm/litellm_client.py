@@ -18,7 +18,7 @@ import json
 import os
 import threading
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 from canon_tcm_hermes.llm.json_repair import repair_json
 from canon_tcm_hermes.validators.schema_validator import schema_errors
@@ -72,6 +72,7 @@ def complete_json(
     schema_name: str | None = None,
     settings: LLMSettings | None = None,
     raw_sink: list[str] | None = None,
+    validate: Callable[[Any], list[str]] | None = None,
 ) -> Any:
     """Call the LLM and return parsed JSON, retrying with error feedback.
 
@@ -79,6 +80,10 @@ def complete_json(
     parser message; schema validation errors are retried with the
     validation diff; exhausting the retry budget raises LLMError so the
     caller can record the failure in errors.jsonl (never silently drop).
+
+    `validate` overrides `schema_name`: it receives the parsed JSON and
+    returns a list of error strings (empty = valid). Use it when the raw
+    LLM payload is only schema-valid after caller-side post-processing.
     """
     settings = settings or LLMSettings()
     if not settings.model:
@@ -109,9 +114,12 @@ def complete_json(
                 {"role": "user", "content": f"Your previous reply was not valid JSON ({exc}). Return ONLY the corrected JSON object, no prose, no code fences."},
             ]
             continue
-        if schema_name is None:
+        if validate is not None:
+            errors = list(validate(data))
+        elif schema_name is not None:
+            errors = schema_errors(data, schema_name)
+        else:
             return data
-        errors = schema_errors(data, schema_name)
         if not errors:
             return data
         last_error = "schema_validation_failed: " + "; ".join(errors[:5])

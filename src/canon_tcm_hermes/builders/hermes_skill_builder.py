@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -125,9 +126,56 @@ else:
 }
 
 
+def _read_skill_meta(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    try:
+        meta = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError:
+        return None
+    return meta if isinstance(meta, dict) else None
+
+
+def _latest_promoted_parent(skill_id: str, output_dir: str | Path, exclude_run: str) -> dict[str, Any] | None:
+    """Find the most recently promoted (stable) package for skill_id across runs."""
+    runs_root = Path(output_dir) / "runs"
+    if not runs_root.is_dir():
+        return None
+    best_key = ""
+    best: dict[str, Any] | None = None
+    for candidate in sorted(runs_root.iterdir()):
+        if not candidate.is_dir() or candidate.name == exclude_run:
+            continue
+        meta = _read_skill_meta(candidate / "skills" / skill_id / "skill.yaml")
+        if not meta or meta.get("status") != "stable":
+            continue
+        log = (meta.get("evolution") or {}).get("evolution_log") or []
+        promoted_at = next((entry.get("timestamp", "") for entry in reversed(log) if entry.get("decision") == "promote"), "")
+        key = f"{promoted_at}|{candidate.name}"
+        if best is None or key > best_key:
+            best_key, best = key, {"run_id": candidate.name, "version": meta.get("version")}
+    return best
+
+
 def build_skill(run_id: str, skill_id: str, output_dir: str | Path = "outputs") -> Path:
+    """Export the skill package for a run.
+
+    Governance rules: a package already promoted to `stable` is never
+    overwritten (rebuilding would silently replace expert-audited content);
+    rebuilding an unpromoted package preserves its evolution_log and in-run
+    lineage; a fresh package links its lineage to the most recently promoted
+    run of the same skill.
+    """
     rd = run_dir(run_id, output_dir)
     out = ensure_dir(rd / "skills" / skill_id)
+    existing = _read_skill_meta(out / "skill.yaml")
+    if existing and existing.get("status") == "stable":
+        raise RuntimeError(
+            f"refusing to overwrite promoted skill package {out / 'skill.yaml'} "
+            f"(status=stable, version={existing.get('version')}); "
+            "rebuild under a new --run-id, or remove the package directory to force a rebuild"
+        )
+    parent = _latest_promoted_parent(skill_id, output_dir, exclude_run=run_id)
     refs = ensure_dir(out / "references")
     scripts = ensure_dir(out / "scripts")
     name = skill_id.replace("_", "-")
@@ -136,17 +184,23 @@ def build_skill(run_id: str, skill_id: str, output_dir: str | Path = "outputs") 
         "skill_id": skill_id,
         "run_id": run_id,
         "protocol_version": "v5.0",
-        "version": "0.1.0",
+        "version": (existing or {}).get("version") or "0.1.0",
         "status": "auto_generated_requires_audit",
-        "lineage": {"built_from_run": run_id, "parent_version": None},
+        "lineage": {
+            "built_from_run": run_id,
+            "parent_version": ((existing or {}).get("lineage") or {}).get("parent_version"),
+            "parent_run": parent["run_id"] if parent else None,
+            "parent_stable_version": parent["version"] if parent else None,
+        },
         "evolution": {
             "loop": [
                 "add or revise rows in data.xlsx",
                 "canon all --input data.xlsx --run-id <new-run>",
-                "review audit_package.json",
+                "canon diff --run-id <new-run> --baseline <last-promoted-run>",
+                "review audit_package.json (delta_since_baseline scopes the review)",
                 "canon promote --run-id <new-run> --skill-id " + skill_id + " --decision promote --expert-id <id>",
             ],
-            "evolution_log": [],
+            "evolution_log": ((existing or {}).get("evolution") or {}).get("evolution_log") or [],
         },
     }
     atomic_write_text(out / "skill.yaml", yaml.safe_dump(skill_meta, allow_unicode=True, sort_keys=False))
@@ -159,7 +213,20 @@ def build_skill(run_id: str, skill_id: str, output_dir: str | Path = "outputs") 
         sp = rd / src
         if sp.exists():
             shutil.copyfile(sp, refs / dst)
-    atomic_write_text(refs / "safety_policy.yaml", "patient_intake:\n  show_syndrome: false\n  show_formula: false\n  show_dosage: false\n  show_treatment_principle: false\n")
+    from canon_tcm_hermes.inference.run_inference import patient_forbidden_keys, patient_forbidden_terms
+
+    safety_policy = {
+        "patient_intake": {
+            "show_syndrome": False,
+            "show_formula": False,
+            "show_dosage": False,
+            "show_treatment_principle": False,
+        },
+        # effective lexicon at build time: built-in floor + configs/patient_safety_lexicon.yaml
+        "forbidden_patient_terms": patient_forbidden_terms(),
+        "forbidden_patient_keys": patient_forbidden_keys(),
+    }
+    atomic_write_text(refs / "safety_policy.yaml", yaml.safe_dump(safety_policy, allow_unicode=True, sort_keys=False))
     guideline = project_root() / "docs" / "genre_guideline_v1.0.md"
     if guideline.exists():
         shutil.copyfile(guideline, refs / "genre_guideline.md")

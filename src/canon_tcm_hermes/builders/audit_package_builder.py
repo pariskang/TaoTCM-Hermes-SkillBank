@@ -48,6 +48,15 @@ def build_audit_package(run_id: str, skill_id: str = "shanghan_six_formula_clust
         "audit_queue_path": "audit/audit_queue.jsonl",
         "recommended_decision": "promote_to_terminal_human_audit",
     }
+    diff = _read_json(rd / "reports" / "run_diff_report.json")
+    if diff:
+        # canon diff ran against an audited baseline: scope the review to the delta.
+        package["delta_since_baseline"] = {
+            "baseline_run": diff.get("baseline_run"),
+            "summary": diff.get("summary"),
+            "audit_focus": diff.get("audit_focus"),
+            "report_path": "reports/run_diff_report.json",
+        }
     atomic_write_json(rd / "audit" / "audit_package.json", package)
     return package
 
