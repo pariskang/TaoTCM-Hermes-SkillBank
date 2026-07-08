@@ -5,10 +5,19 @@
   "description": "医论体产出主张三元组与下游用途白名单，绝不直接生成方证匹配规则",
   "type": "object",
   "properties": {
-    "claim_id": { "type": "string" },
+    "claim_id": {
+      "type": "string"
+    },
     "claim_type": {
       "type": "string",
-      "enum": ["pathogenesis_principle", "transmission_framework", "treatment_principle", "physiology_doctrine", "diagnostic_principle", "ethics_or_practice_norm"],
+      "enum": [
+        "pathogenesis_principle",
+        "transmission_framework",
+        "treatment_principle",
+        "physiology_doctrine",
+        "diagnostic_principle",
+        "ethics_or_practice_norm"
+      ],
       "description": "病机原则/传变框架/治则/生理学说/诊法原则/医德规范"
     },
     "claims": {
@@ -18,53 +27,159 @@
       "items": {
         "type": "object",
         "properties": {
-          "subject": { "type": "string" },
-          "predicate": { "type": "string" },
-          "object": { "type": "string" },
-          "condition": { "type": "string" },
-          "quantifier": { "type": "string", "enum": ["universal", "typical", "conditional", "unspecified"], "description": "诸X皆属Y为universal——universal主张默认仅作病机解释候选，禁止编译为硬规则" }
+          "subject": {
+            "type": "string"
+          },
+          "predicate": {
+            "type": "string"
+          },
+          "object": {
+            "type": "string"
+          },
+          "condition": {
+            "type": "string"
+          },
+          "quantifier": {
+            "type": "string",
+            "enum": [
+              "universal",
+              "typical",
+              "conditional",
+              "unspecified"
+            ],
+            "description": "诸X皆属Y为universal——universal主张默认仅作病机解释候选，禁止编译为硬规则"
+          }
         },
-        "required": ["subject", "predicate", "object"]
+        "required": [
+          "subject",
+          "predicate",
+          "object"
+        ]
       }
     },
-    "argumentation_note": { "type": "string", "description": "论证方式摘要：取象类比/经文引证/临证归纳等，供证据评估参考" },
+    "argumentation_note": {
+      "type": "string",
+      "description": "论证方式摘要：取象类比/经文引证/临证归纳等，供证据评估参考"
+    },
     "transmission_states": {
       "type": "array",
       "description": "claim_type=transmission_framework 时填写：可抽取的状态序列，供上下文状态层建骨架",
       "items": {
         "type": "object",
         "properties": {
-          "from_state": { "type": "string" },
-          "to_state": { "type": "string" },
-          "trigger_or_condition": { "type": "string" },
-          "pathway_type": { "type": "string", "enum": ["顺传", "逆传", "误治变证", "未明示"] }
+          "from_state": {
+            "type": "string"
+          },
+          "to_state": {
+            "type": "string"
+          },
+          "trigger_or_condition": {
+            "type": "string"
+          },
+          "pathway_type": {
+            "type": "string",
+            "enum": [
+              "顺传",
+              "逆传",
+              "误治变证",
+              "未明示"
+            ]
+          }
         },
-        "required": ["from_state", "to_state"]
+        "required": [
+          "from_state",
+          "to_state"
+        ]
       }
     },
-    "school_tag": { "$ref": "common.schema.json#/definitions/schoolTag" },
+    "school_tag": {
+      "$ref": "common.schema.json#/definitions/schoolTag"
+    },
     "normalized_terms": {
       "type": "array",
-      "items": { "$ref": "common.schema.json#/definitions/termAmbiguity" }
+      "items": {
+        "$ref": "common.schema.json#/definitions/termAmbiguity"
+      }
     },
     "evidence": {
       "type": "object",
       "properties": {
-        "source": { "$ref": "common.schema.json#/definitions/sourceRef" },
-        "quote": { "type": "string" },
-        "quote_hash": { "type": "string" },
-        "evidence_level": { "$ref": "common.schema.json#/definitions/evidenceLevel" }
+        "source": {
+          "$ref": "common.schema.json#/definitions/sourceRef"
+        },
+        "quote": {
+          "type": "string"
+        },
+        "quote_hash": {
+          "type": "string"
+        },
+        "evidence_level": {
+          "$ref": "common.schema.json#/definitions/evidenceLevel"
+        },
+        "source_id": {
+          "type": "string"
+        },
+        "segment_id": {
+          "type": "string"
+        },
+        "evidence_quote": {
+          "type": "string"
+        },
+        "quote_span": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "content_hash": {
+          "type": "string"
+        }
       },
-      "required": ["source", "quote", "quote_hash", "evidence_level"]
+      "required": [
+        "source",
+        "quote",
+        "quote_hash",
+        "evidence_level"
+      ],
+      "additionalProperties": false
     },
-    "downstream_use": { "$ref": "common.schema.json#/definitions/downstreamUse" },
+    "downstream_use": {
+      "$ref": "common.schema.json#/definitions/downstreamUse"
+    },
     "not_usable_for": {
-      "allOf": [{ "$ref": "common.schema.json#/definitions/notUsableFor" }],
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/definitions/notUsableFor"
+        }
+      ],
       "description": "必须包含 formula_pattern_matching"
     },
-    "risk_tier": { "$ref": "common.schema.json#/definitions/riskTier" },
-    "build_status": { "$ref": "common.schema.json#/definitions/buildStatus" },
-    "annotation_meta": { "$ref": "common.schema.json#/definitions/annotationMeta" }
+    "risk_tier": {
+      "$ref": "common.schema.json#/definitions/riskTier"
+    },
+    "build_status": {
+      "$ref": "common.schema.json#/definitions/buildStatus"
+    },
+    "annotation_meta": {
+      "$ref": "common.schema.json#/definitions/annotationMeta"
+    },
+    "source_id": {
+      "type": "string"
+    },
+    "segment_id": {
+      "type": "string"
+    }
   },
-  "required": ["claim_id", "claim_type", "claims", "evidence", "not_usable_for", "build_status", "annotation_meta"]
+  "required": [
+    "claim_id",
+    "claim_type",
+    "claims",
+    "evidence",
+    "not_usable_for",
+    "build_status",
+    "annotation_meta"
+  ],
+  "additionalProperties": false
 }

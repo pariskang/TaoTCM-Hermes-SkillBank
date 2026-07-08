@@ -169,10 +169,10 @@ def build_skill(run_id: str, skill_id: str, output_dir: str | Path = "outputs") 
     rd = run_dir(run_id, output_dir)
     out = ensure_dir(rd / "skills" / skill_id)
     existing = _read_skill_meta(out / "skill.yaml")
-    if existing and existing.get("status") == "stable":
+    if existing and existing.get("status") in {"stable", "stable_rolled_back"}:
         raise RuntimeError(
-            f"refusing to overwrite promoted skill package {out / 'skill.yaml'} "
-            f"(status=stable, version={existing.get('version')}); "
+            f"refusing to overwrite expert-audited skill package {out / 'skill.yaml'} "
+            f"(status={existing.get('status')}, version={existing.get('version')}); "
             "rebuild under a new --run-id, or remove the package directory to force a rebuild"
         )
     parent = _latest_promoted_parent(skill_id, output_dir, exclude_run=run_id)

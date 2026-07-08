@@ -31,7 +31,8 @@ COMMANDS = [
     "init", "make-demo", "route", "annotate", "validate", "build-graph", "build-patterns",
     "compile-inference", "build-skill", "build-audit", "eval-counterfactual", "build-eval",
     "eval-ablation", "eval-attribution", "conformal", "calibrate-router", "model-card",
-    "export", "export-codex", "assess", "promote", "diff", "all", "build",
+    "export", "export-codex", "assess", "promote", "rollback", "log-override", "diff",
+    "agent", "agent-status", "all", "build",
 ]
 
 
@@ -74,6 +75,16 @@ def main(argv: list[str] | None = None) -> None:
             p.add_argument("--alpha", type=float, default=0.1, help="conformal miscoverage level (coverage target = 1 - alpha)")
         if name == "calibrate-router":
             p.add_argument("--gold", required=True, help="micro-gold JSONL: {content, book, chapter, segments:[{span,genre}]} per line")
+        if name == "agent":
+            p.add_argument("--goal", default="skill_package", choices=["annotate_corpus", "evidence_ready", "eval_ready", "skill_package"], help="target state the agent plans toward")
+        if name == "rollback":
+            p.add_argument("--expert-id", required=True)
+            p.add_argument("--reason", default="")
+        if name == "log-override":
+            p.add_argument("--physician-id", required=True)
+            p.add_argument("--reason", required=True)
+            p.add_argument("--reason-category", default="clinical_judgment", choices=["clinical_judgment", "missing_information", "patient_preference", "safety_concern", "other"])
+            p.add_argument("--payload", default="{}", help="JSON payload of the overridden inference input/output")
     args = parser.parse_args(argv)
 
     if args.cmd == "init":
@@ -150,6 +161,27 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.cmd == "model-card":
         print(build_model_card(args.run_id, args.skill_id, args.output_dir))
+        return
+    if args.cmd == "agent":
+        from canon_tcm_hermes.agent import run_agent
+
+        state = run_agent(args.run_id, goal=args.goal, input_path=args.input or "", skill_id=args.skill_id, output_dir=args.output_dir)
+        print(json.dumps({"status": state.status, "completed_steps": state.completed_steps, "warnings": state.warnings, "human_checkpoint": state.human_checkpoint, "failure_reason": state.failure_reason}, ensure_ascii=False, indent=2))
+        return
+    if args.cmd == "agent-status":
+        from canon_tcm_hermes.agent import agent_status
+
+        print(json.dumps(agent_status(args.run_id, args.output_dir), ensure_ascii=False, indent=2))
+        return
+    if args.cmd == "rollback":
+        from canon_tcm_hermes.governance.rollback import rollback_version
+
+        print(json.dumps(rollback_version(args.run_id, args.expert_id, args.reason, args.skill_id, args.output_dir), ensure_ascii=False, indent=2))
+        return
+    if args.cmd == "log-override":
+        from canon_tcm_hermes.governance.override_logger import log_override
+
+        print(json.dumps(log_override(args.run_id, args.physician_id, args.reason, json.loads(args.payload), reason_category=args.reason_category, output_dir=args.output_dir), ensure_ascii=False, indent=2))
         return
     if args.cmd == "assess":
         assess_protocol(args.run_id, args.output_dir)

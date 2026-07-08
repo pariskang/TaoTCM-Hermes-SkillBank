@@ -54,7 +54,7 @@ def build_knowledge_graph(run_id: str, output_dir: str | Path = "outputs") -> di
             if item.get("segment_id"):
                 edges.append({"source": item["segment_id"], "target": node_id, "relation": "annotates"})
 
-    _add_domain_edges(edges, annotations)
+    _add_domain_edges(edges, annotations, nodes)
     graph = {"nodes": list(nodes.values()), "edges": _dedupe_edges(edges)}
     atomic_write_json(rd / "graphs" / "knowledge_graph.json", graph)
     write_jsonl(rd / "graphs" / "cross_genre_links.jsonl", links)
@@ -62,18 +62,35 @@ def build_knowledge_graph(run_id: str, output_dir: str | Path = "outputs") -> di
     return graph
 
 
-def _add_domain_edges(edges: list[dict[str, Any]], annotations: dict[str, list[dict[str, Any]]]) -> None:
+def _add_domain_edges(edges: list[dict[str, Any]], annotations: dict[str, list[dict[str, Any]]], nodes: dict[str, dict[str, Any]]) -> None:
+    from canon_tcm_hermes.builders.entity_resolver import canonical_name, formula_node_id, fold_variants, herb_node_id, pulse_node_id
+
     formulas = annotations["formula_templates.jsonl"]
-    formula_by_name = {item.get("formula_name"): item.get("formula_id") for item in formulas}
+    # canonical surface form -> annotated template id, so aliases and
+    # variant characters resolve to ONE node id
+    formula_ids = {canonical_name(item.get("formula_name", ""), "formulas"): item.get("formula_id") for item in formulas if item.get("formula_id")}
+    herb_ids = {canonical_name(item.get("herb_name", ""), "herbs"): item.get("herb_id") for item in annotations["herb_templates.jsonl"] if item.get("herb_id")}
+    pulse_ids = {canonical_name(item.get("pulse_name", ""), "pulses"): item.get("pulse_id") for item in annotations["pulse_templates.jsonl"] if item.get("pulse_id")}
+
+    def formula_ref(name: str) -> str:
+        node_id = formula_node_id(name, formula_ids)
+        _add_node(nodes, node_id, "Formula", label=canonical_name(name, "formulas"))
+        return node_id
+
+    def herb_ref(name: str) -> str:
+        node_id = herb_node_id(name, herb_ids)
+        _add_node(nodes, node_id, "Herb", label=canonical_name(name, "herbs"))
+        return node_id
+
     for clause in annotations["clause_templates.jsonl"]:
         formula_name = (clause.get("conclusion") or {}).get("formula")
-        if formula_name and formula_by_name.get(formula_name):
-            edges.append({"source": clause["template_id"], "target": formula_by_name[formula_name], "relation": "prescribes"})
+        if formula_name:
+            edges.append({"source": clause["template_id"], "target": formula_ref(formula_name), "relation": "prescribes"})
     for formula in formulas:
         for herb in formula.get("composition", []):
             herb_name = herb.get("herb")
             if herb_name:
-                edges.append({"source": formula["formula_id"], "target": herb_name, "relation": "contains_herb"})
+                edges.append({"source": formula["formula_id"], "target": herb_ref(herb_name), "relation": "contains_herb"})
     for comment in annotations["commentary_templates.jsonl"]:
         target = comment.get("target_clause")
         if target:
@@ -81,12 +98,22 @@ def _add_domain_edges(edges: list[dict[str, Any]], annotations: dict[str, list[d
     for mnemonic in annotations["mnemonic_templates.jsonl"]:
         target = mnemonic.get("target_formula") or (mnemonic.get("verse_fields") or {}).get("target_id") or mnemonic.get("target_pulse")
         if target:
-            edges.append({"source": mnemonic["item_id"], "target": target, "relation": "mnemonic_of"})
+            folded = fold_variants(target)
+            formula_canonical = canonical_name(target, "formulas")
+            if formula_canonical in formula_ids or any(suffix in formula_canonical for suffix in ("汤", "散", "丸", "饮")):
+                resolved = formula_ref(target)
+            elif "脉" in folded:
+                resolved = pulse_node_id(target, pulse_ids)
+                _add_node(nodes, resolved, "Pulse", label=canonical_name(target, "pulses"))
+            else:
+                resolved = folded
+                _add_node(nodes, resolved, "Concept", label=folded)
+            edges.append({"source": mnemonic["item_id"], "target": resolved, "relation": "mnemonic_of"})
     for case in annotations["case_templates.jsonl"]:
         for intervention in case.get("interventions", []):
             formula = intervention.get("formula") if isinstance(intervention, dict) else intervention
             if formula:
-                edges.append({"source": case["case_id"], "target": formula, "relation": "corroborates"})
+                edges.append({"source": case["case_id"], "target": formula_ref(formula), "relation": "corroborates"})
 
 
 def _add_node(nodes: dict[str, dict[str, Any]], node_id: str, node_type: str, **attrs: Any) -> None:

@@ -5,25 +5,39 @@
   "description": "忠实于单条原文的条文级证据模板，不做跨条文综合。一条原文可产出多个模板（如含正反两面时拆为阳性模板+禁忌模板）",
   "type": "object",
   "properties": {
-    "template_id": { "type": "string", "description": "如 SHL_038；同条拆分时加后缀 SHL_038_NEG" },
+    "template_id": {
+      "type": "string",
+      "description": "如 SHL_038；同条拆分时加后缀 SHL_038_NEG"
+    },
     "clause_subtype": {
       "type": "string",
-      "enum": ["prescriptive", "theoretical", "contraindication", "mistreatment_consequence"],
+      "enum": [
+        "prescriptive",
+        "theoretical",
+        "contraindication",
+        "mistreatment_consequence"
+      ],
       "description": "prescriptive条件→处置；theoretical条件→病机/病名判定；contraindication禁律；mistreatment_consequence误治后果"
     },
     "states": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "病位/病名前提，如 太阳病、太阳中风、伤寒"
     },
     "features_present": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "原文明示存在的症候特征（归一化前的原文词形在 normalized_terms 中映射）"
     },
     "features_absent": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "原文明示不存在的特征，如 不汗出→无汗、不渴"
     },
     "compound_features": {
@@ -32,75 +46,216 @@
       "items": {
         "type": "object",
         "properties": {
-          "surface": { "type": "string" },
-          "components": { "type": "array", "items": { "type": "string" }, "minItems": 2 },
-          "semantic_note": { "type": "string" }
+          "surface": {
+            "type": "string"
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2
+          },
+          "semantic_note": {
+            "type": "string"
+          }
         },
-        "required": ["surface", "components"]
+        "required": [
+          "surface",
+          "components"
+        ]
       }
     },
     "or_features": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "或然症（或渴或不渴类），出现提示兼夹，不作为门控条件"
     },
     "treatment_context": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "治疗史前提：已发汗、下之后、若吐若下后 等"
     },
-    "course_context": { "type": "string", "description": "病程前提：得之X日、X日已上 等" },
+    "course_context": {
+      "type": "string",
+      "description": "病程前提：得之X日、X日已上 等"
+    },
     "pulse_features": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "脉象特征原文词形，归一化时经脉象本体分解（脉浮紧→浮+紧）"
     },
     "conclusion": {
       "type": "object",
       "properties": {
-        "type": { "type": "string", "enum": ["formula", "treatment_method", "pattern_naming", "prohibition", "prognosis"] },
-        "formula": { "type": "string" },
-        "treatment_method": { "type": "string" },
-        "pattern_name": { "type": "string" },
-        "assertion_force": { "$ref": "common.schema.json#/definitions/assertionForce" }
+        "type": {
+          "type": "string",
+          "enum": [
+            "formula",
+            "treatment_method",
+            "pattern_naming",
+            "prohibition",
+            "prognosis"
+          ]
+        },
+        "formula": {
+          "type": "string"
+        },
+        "treatment_method": {
+          "type": "string"
+        },
+        "pattern_name": {
+          "type": "string"
+        },
+        "assertion_force": {
+          "$ref": "common.schema.json#/definitions/assertionForce"
+        },
+        "raw": {
+          "type": "string"
+        }
       },
-      "required": ["type", "assertion_force"]
+      "required": [
+        "type",
+        "assertion_force"
+      ],
+      "additionalProperties": false
     },
     "negative_clause": {
       "type": "object",
       "description": "同条内的禁忌/反面内容（不可服之+误服后果）；存在时须同时生成独立禁忌模板并在此引用",
       "properties": {
-        "condition": { "type": "array", "items": { "type": "string" } },
-        "assertion_force": { "$ref": "common.schema.json#/definitions/assertionForce" },
-        "consequence": { "type": "string" },
-        "split_template_id": { "type": "string", "description": "拆分出的禁忌模板 ID" },
-        "risk_tier": { "$ref": "common.schema.json#/definitions/riskTier" }
+        "condition": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "assertion_force": {
+          "$ref": "common.schema.json#/definitions/assertionForce"
+        },
+        "consequence": {
+          "type": "string"
+        },
+        "split_template_id": {
+          "type": "string",
+          "description": "拆分出的禁忌模板 ID"
+        },
+        "risk_tier": {
+          "$ref": "common.schema.json#/definitions/riskTier"
+        }
       }
     },
     "normalized_terms": {
       "type": "array",
-      "items": { "$ref": "common.schema.json#/definitions/termAmbiguity" }
+      "items": {
+        "$ref": "common.schema.json#/definitions/termAmbiguity"
+      }
     },
     "evidence": {
       "type": "object",
       "properties": {
-        "source": { "$ref": "common.schema.json#/definitions/sourceRef" },
-        "quote": { "type": "string", "description": "原文逐字引文，须通过字符级回源验证" },
-        "quote_hash": { "type": "string" },
-        "evidence_level": { "$ref": "common.schema.json#/definitions/evidenceLevel" }
+        "source": {
+          "$ref": "common.schema.json#/definitions/sourceRef"
+        },
+        "quote": {
+          "type": "string",
+          "description": "原文逐字引文，须通过字符级回源验证"
+        },
+        "quote_hash": {
+          "type": "string"
+        },
+        "evidence_level": {
+          "$ref": "common.schema.json#/definitions/evidenceLevel"
+        },
+        "source_id": {
+          "type": "string"
+        },
+        "segment_id": {
+          "type": "string"
+        },
+        "evidence_quote": {
+          "type": "string"
+        },
+        "quote_span": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "content_hash": {
+          "type": "string"
+        }
       },
-      "required": ["source", "quote", "quote_hash", "evidence_level"]
+      "required": [
+        "source",
+        "quote",
+        "quote_hash",
+        "evidence_level"
+      ],
+      "additionalProperties": false
     },
-    "downstream_use": { "$ref": "common.schema.json#/definitions/downstreamUse" },
-    "risk_tier": { "$ref": "common.schema.json#/definitions/riskTier" },
-    "build_status": { "$ref": "common.schema.json#/definitions/buildStatus" },
-    "annotation_meta": { "$ref": "common.schema.json#/definitions/annotationMeta" }
+    "downstream_use": {
+      "$ref": "common.schema.json#/definitions/downstreamUse"
+    },
+    "risk_tier": {
+      "$ref": "common.schema.json#/definitions/riskTier"
+    },
+    "build_status": {
+      "$ref": "common.schema.json#/definitions/buildStatus"
+    },
+    "annotation_meta": {
+      "$ref": "common.schema.json#/definitions/annotationMeta"
+    },
+    "source_id": {
+      "type": "string"
+    },
+    "segment_id": {
+      "type": "string"
+    },
+    "not_usable_for": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
   },
-  "required": ["template_id", "clause_subtype", "conclusion", "evidence", "risk_tier", "build_status", "annotation_meta"],
+  "required": [
+    "template_id",
+    "clause_subtype",
+    "conclusion",
+    "evidence",
+    "risk_tier",
+    "build_status",
+    "annotation_meta"
+  ],
   "allOf": [
     {
-      "if": { "properties": { "clause_subtype": { "enum": ["contraindication", "mistreatment_consequence"] } } },
-      "then": { "properties": { "risk_tier": { "const": "T3" } } }
+      "if": {
+        "properties": {
+          "clause_subtype": {
+            "enum": [
+              "contraindication",
+              "mistreatment_consequence"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "risk_tier": {
+            "const": "T3"
+          }
+        }
+      }
     }
-  ]
+  ],
+  "additionalProperties": false
 }

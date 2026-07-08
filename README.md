@@ -1,6 +1,8 @@
 # TaoTCM-Hermes-SkillBank
 
-TaoTCM-Hermes AutoBuild Protocol implementation: a genre-aware, evidence-grounded, auditable pipeline that transforms `data.xlsx` into versionable, evolvable Hermes/Codex-compatible Skill packages for classical Chinese medicine teaching and clinician-assist workflows.
+**An agentic SkillBank AutoBuild framework for classical Chinese medicine knowledge engineering** — a genre-aware, evidence-grounded, auditable system that transforms `data.xlsx` into versionable, evolvable Hermes/Codex-compatible Skill packages for teaching and clinician-assist workflows.
+
+Positioning (deliberate): this is a *knowledge-construction and auditable skill-generation agent framework*, *not* an autonomous clinical decision agent. The agent loop plans, acts, observes and reflects over registered pipeline tools with human-in-the-loop checkpoints; it can drive a corpus to an audit-ready skill package, and it can never promote one to stable — that decision is structurally reserved for a human expert.
 
 ```text
 data.xlsx → genre routing (8 genres + mixed-span segmentation)
@@ -53,6 +55,15 @@ How LLM mode works:
 - LLM annotation jobs are resumable: results are cached per segment in SQLite (`outputs/progress.sqlite`) + `annotations/cache/`, keyed by input hash, prompt version, and guideline version.
 - `--llm` / `--no-llm` flags override the environment per command.
 
+## Agent loop (Plan → Act → Observe → Reflect)
+
+```bash
+canon agent --input data/raw/data.xlsx --run-id run001 [--goal skill_package]
+canon agent-status --run-id run001
+```
+
+The agent plans dynamically over a typed tool registry (each tool declares the artifacts it requires/produces and its risk tier): satisfied steps are skipped, so interrupted runs resume where they stopped; every step is observed (annotation errors, citation failures, empty-core patterns, validation state) and reflected on (continue / retry under budget / abort with reason / pause for human). State and episodic memory persist under `outputs/runs/<run>/agent/`. Goals: `annotate_corpus`, `evidence_ready`, `eval_ready`, `skill_package`. The `promote` tool is registered as `needs_human` — invoking it through the agent always pauses the loop.
+
 ## Main commands
 
 ```bash
@@ -78,7 +89,12 @@ canon export --run-id run001 [--targets claude,codex,openclaw,lobechat]
 canon all --input data/raw/data.xlsx --run-id run001 [--llm-baselines]
 canon promote --run-id run001 --skill-id shanghan_six_formula_cluster \
       --decision promote --expert-id <id> --approved-version 1.0.0
+canon rollback --run-id run002 --expert-id <id> --reason "..."   # restore previous stable package
+canon log-override --run-id run001 --physician-id <id> --reason "..." \
+      --reason-category safety_concern --payload '{...}'          # tamper-evident override trail
 ```
+
+Engineering notes: annotation and routing are validated against strict schemas (`additionalProperties: false` — unknown fields are rejected, not tolerated); scoring weights, support-level cut points and top-k are read from the run's `inference/inference_config.yaml` (the config drives the engine); contraindication rules are extracted from `contraindication`/`mistreatment_consequence` clauses with evidence ids — never hardcoded per formula; patterns with no core features are excluded from ranking and queued for audit; the patient response is a strongly-typed structure validated against its own response schema before the lexicon scan; knowledge-graph entities are canonicalized through `configs/entity_aliases.yaml` (traditional/simplified folding + alias resolution); the LLM job store is thread-safe under concurrent annotation.
 
 ## Evolvable skill lifecycle
 

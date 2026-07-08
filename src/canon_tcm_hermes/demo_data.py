@@ -13,6 +13,7 @@ def make_demo(path: str | Path = "data/demo/shanghan_six_formula_demo.xlsx") -> 
         {"book":"伤寒注解","volume":"太阳","chapter":"麻黄汤注","content":"太阳病，头痛发热，无汗而喘者，麻黄汤主之。注曰：此表实无汗，故以麻黄发之。"},
         {"book":"汤头歌诀","volume":"发表之剂","chapter":"麻黄汤","content":"麻黄汤中用桂枝，杏仁甘草四般施。"},
         {"book":"素问","volume":"至真要大论","chapter":"病机十九条","content":"诸风掉眩，皆属于肝。"},
+        {"book":"伤寒论","volume":"辨太阳病脉证并治","chapter":"太阳病","content":"太阳病，脉微弱，汗出恶风者，不可服麻黄汤，服之则厥逆。"},
     ]
     pd.DataFrame(rows).to_excel(path, index=False)
     return path

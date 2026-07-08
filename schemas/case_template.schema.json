@@ -5,23 +5,40 @@
   "description": "医案=真实推理实例：时间线+医家推理+干预+结局四元组。自动转化为评测/教学案例与规则佐证，禁止直接归纳一般化规则",
   "type": "object",
   "properties": {
-    "case_id": { "type": "string" },
+    "case_id": {
+      "type": "string"
+    },
     "source_physician": {
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "school_tag": { "$ref": "common.schema.json#/definitions/schoolTag" }
+        "name": {
+          "type": "string"
+        },
+        "school_tag": {
+          "$ref": "common.schema.json#/definitions/schoolTag"
+        }
       },
       "description": "医家与流派——医案 gold answer 是该医家判断而非客观真理，评测须按流派分仓"
     },
     "patient_context": {
       "type": "object",
       "properties": {
-        "sex": { "type": "string" },
-        "age_note": { "type": "string", "description": "原文表述：年四十/弱冠/妪" },
-        "season_or_time": { "type": "string" },
-        "constitution_note": { "type": "string" },
-        "occupation_or_context": { "type": "string" }
+        "sex": {
+          "type": "string"
+        },
+        "age_note": {
+          "type": "string",
+          "description": "原文表述：年四十/弱冠/妪"
+        },
+        "season_or_time": {
+          "type": "string"
+        },
+        "constitution_note": {
+          "type": "string"
+        },
+        "occupation_or_context": {
+          "type": "string"
+        }
       }
     },
     "presentation_timeline": {
@@ -31,15 +48,49 @@
       "items": {
         "type": "object",
         "properties": {
-          "stage": { "type": "integer", "minimum": 1 },
-          "stage_label": { "type": "string", "description": "初诊/复诊/三诊/汗后" },
-          "time_gap_note": { "type": "string", "description": "距上一阶段：翌日/三剂后/越旬" },
-          "features": { "type": "array", "items": { "type": "string" } },
-          "pulse": { "type": "array", "items": { "type": "string" } },
-          "tongue": { "type": "array", "items": { "type": "string" }, "description": "清以前医案常缺舌诊，缺失为常态" },
-          "prior_treatment": { "type": "array", "items": { "type": "string" }, "description": "此前接受的治疗（含他医误治）" }
+          "stage": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "stage_label": {
+            "type": "string",
+            "description": "初诊/复诊/三诊/汗后"
+          },
+          "time_gap_note": {
+            "type": "string",
+            "description": "距上一阶段：翌日/三剂后/越旬"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pulse": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tongue": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "清以前医案常缺舌诊，缺失为常态"
+          },
+          "prior_treatment": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "此前接受的治疗（含他医误治）"
+          }
         },
-        "required": ["stage", "features"]
+        "required": [
+          "stage",
+          "features"
+        ]
       }
     },
     "physician_reasoning_extracted": {
@@ -48,12 +99,29 @@
       "items": {
         "type": "object",
         "properties": {
-          "stage": { "type": "integer" },
-          "judgment": { "type": "string", "description": "辨证判断摘要" },
-          "reasoning_quote": { "type": "string", "description": "原文按语逐字引文" },
-          "rejected_alternatives": { "type": "array", "items": { "type": "string" }, "description": "医家明确排除的鉴别诊断——高价值教学素材" }
+          "stage": {
+            "type": "integer"
+          },
+          "judgment": {
+            "type": "string",
+            "description": "辨证判断摘要"
+          },
+          "reasoning_quote": {
+            "type": "string",
+            "description": "原文按语逐字引文"
+          },
+          "rejected_alternatives": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "医家明确排除的鉴别诊断——高价值教学素材"
+          }
         },
-        "required": ["stage", "judgment"]
+        "required": [
+          "stage",
+          "judgment"
+        ]
       }
     },
     "interventions": {
@@ -61,37 +129,99 @@
       "items": {
         "type": "object",
         "properties": {
-          "stage": { "type": "integer" },
-          "formula": { "type": "string" },
-          "formula_id": { "type": "string" },
-          "modification_note": { "type": "string", "description": "原方加减情况" },
-          "non_formula_intervention": { "type": "string", "description": "针/灸/食养等" }
+          "stage": {
+            "type": "integer"
+          },
+          "formula": {
+            "type": "string"
+          },
+          "formula_id": {
+            "type": "string"
+          },
+          "modification_note": {
+            "type": "string",
+            "description": "原方加减情况"
+          },
+          "non_formula_intervention": {
+            "type": "string",
+            "description": "针/灸/食养等"
+          }
         },
-        "required": ["stage"]
+        "required": [
+          "stage"
+        ]
       }
     },
     "outcome": {
       "type": "object",
       "properties": {
-        "result": { "type": "string" },
-        "result_category": { "type": "string", "enum": ["痊愈", "好转", "无效", "恶化", "死亡", "失访/未载"] },
-        "outcome_reliability": { "type": "string", "const": "author_reported", "description": "古代医案结局均为作者自报，固定标记" }
+        "result": {
+          "type": "string"
+        },
+        "result_category": {
+          "type": "string",
+          "enum": [
+            "痊愈",
+            "好转",
+            "无效",
+            "恶化",
+            "死亡",
+            "失访/未载"
+          ]
+        },
+        "outcome_reliability": {
+          "type": "string",
+          "const": "author_reported",
+          "description": "古代医案结局均为作者自报，固定标记"
+        }
       },
-      "required": ["result_category", "outcome_reliability"]
+      "required": [
+        "result_category",
+        "outcome_reliability"
+      ]
     },
     "auto_generated_eval_case": {
       "type": "object",
       "description": "自动转化的评测案例——医案的核心下游产物",
       "properties": {
-        "eval_case_id": { "type": "string" },
-        "input_features_by_stage": { "type": "array", "items": { "type": "object" } },
-        "gold_answer": { "type": "string", "description": "该医家的方证判断" },
-        "gold_answer_school": { "$ref": "common.schema.json#/definitions/schoolTag" },
-        "tests": { "type": "array", "items": { "type": "string" }, "description": "该案例测试的能力点：上下文转移捕获/汗后变证识别等" },
-        "conversion_usable": { "type": "boolean", "description": "专家终审判定转化后案例是否成立" },
-        "school_divergence_case": { "type": "boolean", "default": false, "description": "跨流派分歧案例单独分仓" }
+        "eval_case_id": {
+          "type": "string"
+        },
+        "input_features_by_stage": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "gold_answer": {
+          "type": "string",
+          "description": "该医家的方证判断"
+        },
+        "gold_answer_school": {
+          "$ref": "common.schema.json#/definitions/schoolTag"
+        },
+        "tests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "该案例测试的能力点：上下文转移捕获/汗后变证识别等"
+        },
+        "conversion_usable": {
+          "type": "boolean",
+          "description": "专家终审判定转化后案例是否成立"
+        },
+        "school_divergence_case": {
+          "type": "boolean",
+          "default": false,
+          "description": "跨流派分歧案例单独分仓"
+        }
       },
-      "required": ["eval_case_id", "gold_answer", "tests"]
+      "required": [
+        "eval_case_id",
+        "gold_answer",
+        "tests"
+      ]
     },
     "rule_corroboration": {
       "type": "array",
@@ -99,34 +229,113 @@
       "items": {
         "type": "object",
         "properties": {
-          "pattern_id": { "type": "string" },
-          "relation": { "type": "string", "enum": ["corroborates", "contradicts", "variant_application"] },
-          "note": { "type": "string", "description": "contradicts 时必填：可能暴露规则错误或医案特殊变法，进终审" }
+          "pattern_id": {
+            "type": "string"
+          },
+          "relation": {
+            "type": "string",
+            "enum": [
+              "corroborates",
+              "contradicts",
+              "variant_application"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "description": "contradicts 时必填：可能暴露规则错误或医案特殊变法，进终审"
+          }
         },
-        "required": ["pattern_id", "relation"]
+        "required": [
+          "pattern_id",
+          "relation"
+        ]
       }
     },
     "bias_flags": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "固定提示项：成功案例选择偏倚/舌象缺失/剂量未载 等"
     },
     "evidence": {
       "type": "object",
       "properties": {
-        "source": { "$ref": "common.schema.json#/definitions/sourceRef" },
-        "quote_hash": { "type": "string" }
+        "source": {
+          "$ref": "common.schema.json#/definitions/sourceRef"
+        },
+        "quote_hash": {
+          "type": "string"
+        },
+        "source_id": {
+          "type": "string"
+        },
+        "segment_id": {
+          "type": "string"
+        },
+        "evidence_quote": {
+          "type": "string"
+        },
+        "quote_span": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "content_hash": {
+          "type": "string"
+        },
+        "quote": {
+          "type": "string"
+        },
+        "evidence_level": {
+          "$ref": "common.schema.json#/definitions/evidenceLevel"
+        }
       },
-      "required": ["source", "quote_hash"]
+      "required": [
+        "source",
+        "quote_hash"
+      ],
+      "additionalProperties": false
     },
-    "downstream_use": { "$ref": "common.schema.json#/definitions/downstreamUse" },
+    "downstream_use": {
+      "$ref": "common.schema.json#/definitions/downstreamUse"
+    },
     "not_usable_for": {
-      "allOf": [{ "$ref": "common.schema.json#/definitions/notUsableFor" }],
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/definitions/notUsableFor"
+        }
+      ],
       "description": "必须包含 direct_rule_induction"
     },
-    "risk_tier": { "$ref": "common.schema.json#/definitions/riskTier" },
-    "build_status": { "$ref": "common.schema.json#/definitions/buildStatus" },
-    "annotation_meta": { "$ref": "common.schema.json#/definitions/annotationMeta" }
+    "risk_tier": {
+      "$ref": "common.schema.json#/definitions/riskTier"
+    },
+    "build_status": {
+      "$ref": "common.schema.json#/definitions/buildStatus"
+    },
+    "annotation_meta": {
+      "$ref": "common.schema.json#/definitions/annotationMeta"
+    },
+    "source_id": {
+      "type": "string"
+    },
+    "segment_id": {
+      "type": "string"
+    }
   },
-  "required": ["case_id", "presentation_timeline", "interventions", "outcome", "evidence", "not_usable_for", "build_status", "annotation_meta"]
+  "required": [
+    "case_id",
+    "presentation_timeline",
+    "interventions",
+    "outcome",
+    "evidence",
+    "not_usable_for",
+    "build_status",
+    "annotation_meta"
+  ],
+  "additionalProperties": false
 }

@@ -5,16 +5,29 @@
   "description": "依附目标原文的解释链接。共识升 E3，分歧触发 disputed 并按流派分仓；不生成独立规则",
   "type": "object",
   "properties": {
-    "comment_id": { "type": "string" },
+    "comment_id": {
+      "type": "string"
+    },
     "commentator": {
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "work": { "type": "string", "description": "注本名称：注解伤寒论/伤寒贯珠集" },
-        "school_tag": { "$ref": "common.schema.json#/definitions/schoolTag" },
-        "era": { "type": "string" }
+        "name": {
+          "type": "string"
+        },
+        "work": {
+          "type": "string",
+          "description": "注本名称：注解伤寒论/伤寒贯珠集"
+        },
+        "school_tag": {
+          "$ref": "common.schema.json#/definitions/schoolTag"
+        },
+        "era": {
+          "type": "string"
+        }
       },
-      "required": ["name"]
+      "required": [
+        "name"
+      ]
     },
     "target_clause": {
       "type": "string",
@@ -24,14 +37,29 @@
       "type": "object",
       "description": "注本所引原文与底本的异文记录",
       "properties": {
-        "has_variant": { "type": "boolean", "default": false },
-        "variant_note": { "type": "string" }
+        "has_variant": {
+          "type": "boolean",
+          "default": false
+        },
+        "variant_note": {
+          "type": "string"
+        }
       }
     },
-    "interpretation_summary": { "type": "string", "description": "注释要点摘要（自动生成，非逐字）" },
+    "interpretation_summary": {
+      "type": "string",
+      "description": "注释要点摘要（自动生成，非逐字）"
+    },
     "interpretation_type": {
       "type": "string",
-      "enum": ["训诂", "病机阐释", "方义阐释", "校勘", "驳议", "临证发挥"],
+      "enum": [
+        "训诂",
+        "病机阐释",
+        "方义阐释",
+        "校勘",
+        "驳议",
+        "临证发挥"
+      ],
       "description": "驳议类自动触发分歧检测"
     },
     "key_quotes": {
@@ -39,69 +67,178 @@
       "items": {
         "type": "object",
         "properties": {
-          "quote": { "type": "string" },
-          "quote_hash": { "type": "string" }
+          "quote": {
+            "type": "string"
+          },
+          "quote_hash": {
+            "type": "string"
+          }
         },
-        "required": ["quote", "quote_hash"]
+        "required": [
+          "quote",
+          "quote_hash"
+        ]
       },
       "maxItems": 3,
       "description": "支撑摘要的关键原文引文，须通过回源验证"
     },
     "agreement_status": {
       "type": "string",
-      "enum": ["consensus", "divergent", "unique", "unassessed"],
+      "enum": [
+        "consensus",
+        "divergent",
+        "unique",
+        "unassessed"
+      ],
       "description": "与其他已入库注家的关系：consensus自动升E3；divergent触发disputed标记"
     },
     "divergence_record": {
       "type": "object",
       "description": "agreement_status=divergent 时必填",
       "properties": {
-        "diverges_from": { "type": "array", "items": { "type": "string" }, "description": "相左的 comment_id 列表" },
-        "divergence_point": { "type": "string" },
+        "diverges_from": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "相左的 comment_id 列表"
+        },
+        "divergence_point": {
+          "type": "string"
+        },
         "positions": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "school_tag": { "$ref": "common.schema.json#/definitions/schoolTag" },
-              "position_summary": { "type": "string" }
+              "school_tag": {
+                "$ref": "common.schema.json#/definitions/schoolTag"
+              },
+              "position_summary": {
+                "type": "string"
+              }
             },
-            "required": ["school_tag", "position_summary"]
+            "required": [
+              "school_tag",
+              "position_summary"
+            ]
           }
         }
       },
-      "required": ["divergence_point"]
+      "required": [
+        "divergence_point"
+      ]
     },
     "supports_aggregation_decisions": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "该注释被用作哪些方证聚合决策的依据（aggregation_decision 引用回填）"
     },
     "evidence": {
       "type": "object",
       "properties": {
-        "source": { "$ref": "common.schema.json#/definitions/sourceRef" },
+        "source": {
+          "$ref": "common.schema.json#/definitions/sourceRef"
+        },
         "evidence_level": {
-          "allOf": [{ "$ref": "common.schema.json#/definitions/evidenceLevel" }],
+          "allOf": [
+            {
+              "$ref": "common.schema.json#/definitions/evidenceLevel"
+            }
+          ],
           "description": "注释体限 E3 或 E4"
+        },
+        "source_id": {
+          "type": "string"
+        },
+        "segment_id": {
+          "type": "string"
+        },
+        "evidence_quote": {
+          "type": "string"
+        },
+        "quote_span": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "content_hash": {
+          "type": "string"
+        },
+        "quote": {
+          "type": "string"
+        },
+        "quote_hash": {
+          "type": "string"
         }
       },
-      "required": ["source", "evidence_level"]
+      "required": [
+        "source",
+        "evidence_level"
+      ],
+      "additionalProperties": false
     },
-    "downstream_use": { "$ref": "common.schema.json#/definitions/downstreamUse" },
+    "downstream_use": {
+      "$ref": "common.schema.json#/definitions/downstreamUse"
+    },
     "not_usable_for": {
-      "allOf": [{ "$ref": "common.schema.json#/definitions/notUsableFor" }],
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/definitions/notUsableFor"
+        }
+      ],
       "description": "必须包含 independent_rule"
     },
-    "risk_tier": { "$ref": "common.schema.json#/definitions/riskTier" },
-    "build_status": { "$ref": "common.schema.json#/definitions/buildStatus" },
-    "annotation_meta": { "$ref": "common.schema.json#/definitions/annotationMeta" }
+    "risk_tier": {
+      "$ref": "common.schema.json#/definitions/riskTier"
+    },
+    "build_status": {
+      "$ref": "common.schema.json#/definitions/buildStatus"
+    },
+    "annotation_meta": {
+      "$ref": "common.schema.json#/definitions/annotationMeta"
+    },
+    "source_id": {
+      "type": "string"
+    },
+    "segment_id": {
+      "type": "string"
+    },
+    "divergence_note": {
+      "type": "string"
+    }
   },
-  "required": ["comment_id", "commentator", "target_clause", "interpretation_summary", "agreement_status", "evidence", "not_usable_for", "build_status", "annotation_meta"],
+  "required": [
+    "comment_id",
+    "commentator",
+    "target_clause",
+    "interpretation_summary",
+    "agreement_status",
+    "evidence",
+    "not_usable_for",
+    "build_status",
+    "annotation_meta"
+  ],
   "allOf": [
     {
-      "if": { "properties": { "agreement_status": { "const": "divergent" } } },
-      "then": { "required": ["divergence_record"] }
+      "if": {
+        "properties": {
+          "agreement_status": {
+            "const": "divergent"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "divergence_record"
+        ]
+      }
     }
-  ]
+  ],
+  "additionalProperties": false
 }

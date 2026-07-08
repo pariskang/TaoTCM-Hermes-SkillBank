@@ -1,0 +1,23 @@
+# Entity alias dictionary for knowledge-graph identity resolution.
+# Canonical surface form -> list of aliases (traditional variants, common
+# abbreviations). The resolver also normalizes 湯/汤, 黃/黄 etc. generically.
+formulas:
+  麻黄汤: [麻黃湯, 麻黄湯]
+  桂枝汤: [桂枝湯]
+  葛根汤: [葛根湯]
+  大青龙汤: [大青龍湯]
+  小青龙汤: [小青龍湯]
+  麻杏石甘汤: [麻杏石甘湯]
+herbs:
+  麻黄: [麻黃]
+  桂枝: []
+  杏仁: []
+  甘草: []
+  芍药: [芍藥]
+  生姜: [生薑]
+  大枣: [大棗]
+  石膏: []
+pulses:
+  浮脉: [浮脈]
+  沉脉: [沉脈]
+  微脉: [微脈]

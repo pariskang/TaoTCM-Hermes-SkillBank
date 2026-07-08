@@ -5,16 +5,32 @@
   "description": "脉象本体单元：八维分解定义+相类鉴别+弱主病关联。服务特征归一化（脉浮紧→浮+紧）与脉诊教学；单脉定证规则被禁止",
   "type": "object",
   "properties": {
-    "pulse_id": { "type": "string", "description": "如 P_FU" },
-    "pulse_name": { "type": "string" },
+    "pulse_id": {
+      "type": "string",
+      "description": "如 P_FU"
+    },
+    "pulse_name": {
+      "type": "string"
+    },
     "definition": {
       "type": "object",
       "description": "原文指感定义的结构化",
       "properties": {
-        "light_touch": { "type": "string", "description": "举（轻取）所得：有余/不足/无" },
-        "middle_touch": { "type": "string", "description": "寻（中取）所得" },
-        "heavy_press": { "type": "string", "description": "按（重取）所得" },
-        "original_definition_quote": { "type": "string" }
+        "light_touch": {
+          "type": "string",
+          "description": "举（轻取）所得：有余/不足/无"
+        },
+        "middle_touch": {
+          "type": "string",
+          "description": "寻（中取）所得"
+        },
+        "heavy_press": {
+          "type": "string",
+          "description": "按（重取）所得"
+        },
+        "original_definition_quote": {
+          "type": "string"
+        }
       }
     },
     "dimensions": {
@@ -23,10 +39,28 @@
       "items": {
         "type": "object",
         "properties": {
-          "dimension": { "type": "string", "enum": ["深浅", "速度", "力度", "形态", "紧张度", "流利度", "节律", "部位"] },
-          "polarity": { "type": "string", "description": "该维上的取值：浅/深、迟/数、虚/实、大/细/长/短、弦/紧/缓、滑/涩、促/结/代、寸/关/尺" }
+          "dimension": {
+            "type": "string",
+            "enum": [
+              "深浅",
+              "速度",
+              "力度",
+              "形态",
+              "紧张度",
+              "流利度",
+              "节律",
+              "部位"
+            ]
+          },
+          "polarity": {
+            "type": "string",
+            "description": "该维上的取值：浅/深、迟/数、虚/实、大/细/长/短、弦/紧/缓、滑/涩、促/结/代、寸/关/尺"
+          }
         },
-        "required": ["dimension", "polarity"]
+        "required": [
+          "dimension",
+          "polarity"
+        ]
       },
       "minItems": 1
     },
@@ -36,11 +70,25 @@
       "items": {
         "type": "object",
         "properties": {
-          "note": { "type": "string" },
-          "source_type": { "type": "string", "enum": ["原文", "后世注家", "现代教学"] },
-          "source_ref": { "type": "string" }
+          "note": {
+            "type": "string"
+          },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "原文",
+              "后世注家",
+              "现代教学"
+            ]
+          },
+          "source_ref": {
+            "type": "string"
+          }
         },
-        "required": ["note", "source_type"]
+        "required": [
+          "note",
+          "source_type"
+        ]
       }
     },
     "differential_pairs": {
@@ -49,11 +97,20 @@
       "items": {
         "type": "object",
         "properties": {
-          "vs_pulse": { "type": "string" },
-          "distinction": { "type": "string" },
-          "evidence_quote": { "type": "string" }
+          "vs_pulse": {
+            "type": "string"
+          },
+          "distinction": {
+            "type": "string"
+          },
+          "evidence_quote": {
+            "type": "string"
+          }
         },
-        "required": ["vs_pulse", "distinction"]
+        "required": [
+          "vs_pulse",
+          "distinction"
+        ]
       }
     },
     "syndrome_associations": {
@@ -62,13 +119,34 @@
       "items": {
         "type": "object",
         "properties": {
-          "association": { "type": "string", "description": "如 主表/主里虚/主痰饮" },
-          "strength": { "type": "string", "enum": ["weak_default", "context_dependent"], "default": "weak_default" },
-          "position_specific": { "type": "string", "description": "限定部位时填写：尺中迟主里虚 等" },
-          "override_note": { "type": "string", "description": "反例与限制：久病见浮不主表 等" },
-          "evidence_quote": { "type": "string" }
+          "association": {
+            "type": "string",
+            "description": "如 主表/主里虚/主痰饮"
+          },
+          "strength": {
+            "type": "string",
+            "enum": [
+              "weak_default",
+              "context_dependent"
+            ],
+            "default": "weak_default"
+          },
+          "position_specific": {
+            "type": "string",
+            "description": "限定部位时填写：尺中迟主里虚 等"
+          },
+          "override_note": {
+            "type": "string",
+            "description": "反例与限制：久病见浮不主表 等"
+          },
+          "evidence_quote": {
+            "type": "string"
+          }
         },
-        "required": ["association", "strength"]
+        "required": [
+          "association",
+          "strength"
+        ]
       }
     },
     "feature_decomposition_rules": {
@@ -77,31 +155,110 @@
       "items": {
         "type": "object",
         "properties": {
-          "compound_surface": { "type": "string", "description": "如 脉浮紧" },
-          "components": { "type": "array", "items": { "type": "string" }, "minItems": 2, "description": "[浮, 紧]" },
-          "decomposable": { "type": "boolean", "description": "false 表示该复合脉有整体含义不可拆（如 脉微欲绝）" }
+          "compound_surface": {
+            "type": "string",
+            "description": "如 脉浮紧"
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "description": "[浮, 紧]"
+          },
+          "decomposable": {
+            "type": "boolean",
+            "description": "false 表示该复合脉有整体含义不可拆（如 脉微欲绝）"
+          }
         },
-        "required": ["compound_surface", "components", "decomposable"]
+        "required": [
+          "compound_surface",
+          "components",
+          "decomposable"
+        ]
       }
     },
     "evidence": {
       "type": "object",
       "properties": {
-        "source": { "$ref": "common.schema.json#/definitions/sourceRef" },
-        "quote": { "type": "string" },
-        "quote_hash": { "type": "string" },
-        "evidence_level": { "$ref": "common.schema.json#/definitions/evidenceLevel" }
+        "source": {
+          "$ref": "common.schema.json#/definitions/sourceRef"
+        },
+        "quote": {
+          "type": "string"
+        },
+        "quote_hash": {
+          "type": "string"
+        },
+        "evidence_level": {
+          "$ref": "common.schema.json#/definitions/evidenceLevel"
+        },
+        "source_id": {
+          "type": "string"
+        },
+        "segment_id": {
+          "type": "string"
+        },
+        "evidence_quote": {
+          "type": "string"
+        },
+        "quote_span": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "content_hash": {
+          "type": "string"
+        }
       },
-      "required": ["source", "quote", "quote_hash", "evidence_level"]
+      "required": [
+        "source",
+        "quote",
+        "quote_hash",
+        "evidence_level"
+      ],
+      "additionalProperties": false
     },
-    "downstream_use": { "$ref": "common.schema.json#/definitions/downstreamUse" },
+    "downstream_use": {
+      "$ref": "common.schema.json#/definitions/downstreamUse"
+    },
     "not_usable_for": {
-      "allOf": [{ "$ref": "common.schema.json#/definitions/notUsableFor" }],
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/definitions/notUsableFor"
+        }
+      ],
       "description": "必须包含 single_pulse_to_syndrome_rule"
     },
-    "risk_tier": { "$ref": "common.schema.json#/definitions/riskTier" },
-    "build_status": { "$ref": "common.schema.json#/definitions/buildStatus" },
-    "annotation_meta": { "$ref": "common.schema.json#/definitions/annotationMeta" }
+    "risk_tier": {
+      "$ref": "common.schema.json#/definitions/riskTier"
+    },
+    "build_status": {
+      "$ref": "common.schema.json#/definitions/buildStatus"
+    },
+    "annotation_meta": {
+      "$ref": "common.schema.json#/definitions/annotationMeta"
+    },
+    "source_id": {
+      "type": "string"
+    },
+    "segment_id": {
+      "type": "string"
+    }
   },
-  "required": ["pulse_id", "pulse_name", "definition", "dimensions", "evidence", "not_usable_for", "build_status", "annotation_meta"]
+  "required": [
+    "pulse_id",
+    "pulse_name",
+    "definition",
+    "dimensions",
+    "evidence",
+    "not_usable_for",
+    "build_status",
+    "annotation_meta"
+  ],
+  "additionalProperties": false
 }

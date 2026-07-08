@@ -5,46 +5,109 @@
   "description": "以单一方剂为单元的结构化档案。剂量信息对患者端默认隐藏；适应证判断须链回条文体，不在此处生成",
   "type": "object",
   "properties": {
-    "formula_id": { "type": "string", "description": "如 F_MAHUANG_TANG" },
-    "formula_name": { "type": "string" },
-    "aliases": { "type": "array", "items": { "type": "string" } },
+    "formula_id": {
+      "type": "string",
+      "description": "如 F_MAHUANG_TANG"
+    },
+    "formula_name": {
+      "type": "string"
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "composition": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
         "properties": {
-          "herb": { "type": "string" },
-          "herb_id": { "type": "string", "description": "链接本草体 herb_id" },
-          "dose_original": { "type": "string", "description": "原文剂量表述：三两/七十个/一升" },
-          "processing": { "type": "string", "description": "炮制：去节/炙/去皮尖" },
+          "herb": {
+            "type": "string"
+          },
+          "herb_id": {
+            "type": "string",
+            "description": "链接本草体 herb_id"
+          },
+          "dose_original": {
+            "type": "string",
+            "description": "原文剂量表述：三两/七十个/一升"
+          },
+          "processing": {
+            "type": "string",
+            "description": "炮制：去节/炙/去皮尖"
+          },
           "role_candidate": {
             "type": "string",
-            "enum": ["君", "臣", "佐", "使", "未判定"],
+            "enum": [
+              "君",
+              "臣",
+              "佐",
+              "使",
+              "未判定"
+            ],
             "description": "君臣佐使多为后世归纳，命名为 candidate 以区分原文断言"
           },
-          "role_basis": { "type": "string", "enum": ["原文明示", "注家归纳", "自动推断"], "default": "自动推断" }
+          "role_basis": {
+            "type": "string",
+            "enum": [
+              "原文明示",
+              "注家归纳",
+              "自动推断"
+            ],
+            "default": "自动推断"
+          }
         },
-        "required": ["herb", "dose_original"]
+        "required": [
+          "herb",
+          "dose_original"
+        ]
       }
     },
     "preparation": {
       "type": "object",
       "properties": {
-        "method": { "type": "string", "description": "煎法要点：先煮麻黄去上沫" },
-        "water": { "type": "string" },
-        "yield": { "type": "string" },
-        "special_notes": { "type": "array", "items": { "type": "string" } }
+        "method": {
+          "type": "string",
+          "description": "煎法要点：先煮麻黄去上沫"
+        },
+        "water": {
+          "type": "string"
+        },
+        "yield": {
+          "type": "string"
+        },
+        "special_notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "administration": {
       "type": "object",
       "properties": {
-        "dose_per_serving": { "type": "string" },
-        "frequency": { "type": "string" },
-        "expected_response": { "type": "string", "description": "药后反应预期：覆取微似汗——经方独有知识，可用于医生端疗效判断提示" },
-        "regimen_note": { "type": "string", "description": "将息法：禁生冷/不须啜粥" },
-        "stop_condition": { "type": "string", "description": "中病即止类指示" }
+        "dose_per_serving": {
+          "type": "string"
+        },
+        "frequency": {
+          "type": "string"
+        },
+        "expected_response": {
+          "type": "string",
+          "description": "药后反应预期：覆取微似汗——经方独有知识，可用于医生端疗效判断提示"
+        },
+        "regimen_note": {
+          "type": "string",
+          "description": "将息法：禁生冷/不须啜粥"
+        },
+        "stop_condition": {
+          "type": "string",
+          "description": "中病即止类指示"
+        }
       }
     },
     "modification_rules": {
@@ -53,60 +116,177 @@
       "items": {
         "type": "object",
         "properties": {
-          "condition": { "type": "string" },
-          "remove": { "type": "array", "items": { "type": "string" } },
-          "add": { "type": "array", "items": {
-            "type": "object",
-            "properties": { "herb": { "type": "string" }, "dose_original": { "type": "string" } },
-            "required": ["herb"]
-          } },
-          "evidence_quote": { "type": "string" }
+          "condition": {
+            "type": "string"
+          },
+          "remove": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "add": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "herb": {
+                  "type": "string"
+                },
+                "dose_original": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "herb"
+              ]
+            }
+          },
+          "evidence_quote": {
+            "type": "string"
+          }
         },
-        "required": ["condition"]
+        "required": [
+          "condition"
+        ]
       }
     },
     "dose_conversion_modern": {
       "type": "object",
       "description": "汉代度量衡换算存在学术争议；系统不自动换算为克数",
       "properties": {
-        "status": { "type": "string", "enum": ["disputed", "not_attempted"], "default": "not_attempted" },
-        "note": { "type": "string" }
-      }
+        "status": {
+          "type": "string",
+          "enum": [
+            "disputed",
+            "not_attempted"
+          ],
+          "default": "not_attempted"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
     },
     "visibility_policy": {
       "type": "object",
       "description": "三场景可见性；患者端剂量信息强制隐藏",
       "properties": {
-        "teaching": { "type": "string", "enum": ["full", "partial", "hidden"], "default": "full" },
-        "clinician_assist": { "type": "string", "enum": ["full", "partial", "hidden"], "default": "full" },
-        "patient_intake": { "type": "string", "const": "hidden" }
+        "teaching": {
+          "type": "string",
+          "enum": [
+            "full",
+            "partial",
+            "hidden"
+          ],
+          "default": "full"
+        },
+        "clinician_assist": {
+          "type": "string",
+          "enum": [
+            "full",
+            "partial",
+            "hidden"
+          ],
+          "default": "full"
+        },
+        "patient_intake": {
+          "type": "string",
+          "const": "hidden"
+        }
       },
-      "required": ["patient_intake"]
+      "required": [
+        "patient_intake"
+      ]
     },
     "linked_patterns": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "链接的方证聚合模型 pattern_id；适应证判断走条文→方证链路"
     },
     "normalized_terms": {
       "type": "array",
-      "items": { "$ref": "common.schema.json#/definitions/termAmbiguity" }
+      "items": {
+        "$ref": "common.schema.json#/definitions/termAmbiguity"
+      }
     },
     "evidence": {
       "type": "object",
       "properties": {
-        "source": { "$ref": "common.schema.json#/definitions/sourceRef" },
-        "quote": { "type": "string" },
-        "quote_hash": { "type": "string" },
-        "evidence_level": { "$ref": "common.schema.json#/definitions/evidenceLevel" }
+        "source": {
+          "$ref": "common.schema.json#/definitions/sourceRef"
+        },
+        "quote": {
+          "type": "string"
+        },
+        "quote_hash": {
+          "type": "string"
+        },
+        "evidence_level": {
+          "$ref": "common.schema.json#/definitions/evidenceLevel"
+        },
+        "source_id": {
+          "type": "string"
+        },
+        "segment_id": {
+          "type": "string"
+        },
+        "evidence_quote": {
+          "type": "string"
+        },
+        "quote_span": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "content_hash": {
+          "type": "string"
+        }
       },
-      "required": ["source", "quote", "quote_hash", "evidence_level"]
+      "required": [
+        "source",
+        "quote",
+        "quote_hash",
+        "evidence_level"
+      ],
+      "additionalProperties": false
     },
-    "downstream_use": { "$ref": "common.schema.json#/definitions/downstreamUse" },
-    "not_usable_for": { "$ref": "common.schema.json#/definitions/notUsableFor" },
-    "risk_tier": { "$ref": "common.schema.json#/definitions/riskTier" },
-    "build_status": { "$ref": "common.schema.json#/definitions/buildStatus" },
-    "annotation_meta": { "$ref": "common.schema.json#/definitions/annotationMeta" }
+    "downstream_use": {
+      "$ref": "common.schema.json#/definitions/downstreamUse"
+    },
+    "not_usable_for": {
+      "$ref": "common.schema.json#/definitions/notUsableFor"
+    },
+    "risk_tier": {
+      "$ref": "common.schema.json#/definitions/riskTier"
+    },
+    "build_status": {
+      "$ref": "common.schema.json#/definitions/buildStatus"
+    },
+    "annotation_meta": {
+      "$ref": "common.schema.json#/definitions/annotationMeta"
+    },
+    "source_id": {
+      "type": "string"
+    },
+    "segment_id": {
+      "type": "string"
+    }
   },
-  "required": ["formula_id", "formula_name", "composition", "visibility_policy", "evidence", "build_status", "annotation_meta"]
+  "required": [
+    "formula_id",
+    "formula_name",
+    "composition",
+    "visibility_policy",
+    "evidence",
+    "build_status",
+    "annotation_meta"
+  ],
+  "additionalProperties": false
 }
