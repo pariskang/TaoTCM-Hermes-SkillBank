@@ -1,3 +1,7 @@
+# DESIGN NOTE (descriptive, not executed by code): this file documents the
+# intended design; runtime behavior is driven by inference_config.yaml,
+# tcm_lexicon.yaml, entity_aliases.yaml, patient_safety_lexicon.yaml and
+# export_targets.yaml. Wire or delete before claiming it as a feature.
 teaching:
   right_person: student
   allowed_outputs: [clause_explanation, formula_pattern_comparison, misconception_alert, rubric_feedback, osce_case]

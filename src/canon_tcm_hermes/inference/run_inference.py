@@ -62,19 +62,34 @@ class PatientIntakeResponse:
 
     mode: str = "patient_intake"
     red_flags: list[str] = field(default_factory=list)
+    urgency: str = "routine"  # routine | emergency_referral
     structured_questions: list[str] = field(default_factory=list)
     visit_summary: str = ""
     forbidden_outputs_checked: bool = True
 
 
-def _load_scoring(run_id: str, output_dir: str | Path) -> tuple[dict[str, float], dict[str, float], int]:
-    """Scoring weights, support-level cut points and top_k from the run's
-    inference_config.yaml — the config drives the engine (falls back to
-    defaults only when the config is absent)."""
+def detect_red_flags(features: list[Any], narrative: str = "") -> list[str]:
+    """Substring red-flag detection over raw feature strings AND free text.
+
+    Exact set-membership missed natural-language input entirely
+    (\"我现在胸痛而且呼吸困难\" → no flags); this scans every raw string.
+    Still lexical, not semantic — the limitation is stated in the summary
+    text, which always instructs the patient to seek care when unsure.
+    """
+    haystacks = [str(item) for item in features] + [str(narrative)]
+    return [term for term in RED_FLAG_TERMS if any(term in haystack for haystack in haystacks)]
+
+
+def _load_scoring(run_id: str, output_dir: str | Path) -> tuple[dict[str, float], dict[str, float], int, float, float]:
+    """Scoring weights, support-level cut points, top_k, minimum core
+    coverage and minimum score from the run's inference_config.yaml — the
+    config drives the engine (defaults only when the config is absent)."""
     path = run_dir(run_id, output_dir) / "inference" / "inference_config.yaml"
     weights = dict(DEFAULT_SCORING_WEIGHTS)
     levels = dict(DEFAULT_SUPPORT_LEVELS)
     top_k = 3
+    min_core_coverage = 0.5
+    min_score = 0.0
     if path.exists():
         cfg = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         if not isinstance(cfg, dict) or not isinstance(cfg.get("scoring", {}), dict):
@@ -86,10 +101,14 @@ def _load_scoring(run_id: str, output_dir: str | Path) -> tuple[dict[str, float]
         for key, value in (scoring.get("support_levels") or {}).items():
             if key in levels and isinstance(value, (int, float)):
                 levels[key] = float(value)
+        if isinstance(scoring.get("min_core_coverage"), (int, float)):
+            min_core_coverage = float(scoring["min_core_coverage"])
+        if isinstance(scoring.get("min_score_exclusive"), (int, float)):
+            min_score = float(scoring["min_score_exclusive"])
         ranking = cfg.get("ranking") or {}
         if isinstance(ranking.get("output_top_k"), int) and ranking["output_top_k"] > 0:
             top_k = ranking["output_top_k"]
-    return weights, levels, top_k
+    return weights, levels, top_k, min_core_coverage, min_score
 
 
 KNOWN_MODES = {"teaching", "clinician_assist", "patient_intake"}
@@ -105,10 +124,19 @@ def run_inference(payload: dict[str, Any], run_id: str = "demo001", output_dir: 
     if mode == "patient_intake":
         # Structural isolation: the typed response is built and returned
         # before any pattern/formula/dosage data is loaded.
+        red_flags = detect_red_flags(payload.get("features", []), str(payload.get("narrative", "")))
+        if red_flags:
+            summary = (
+                "您描述的症状（" + "、".join(red_flags) + "）属于需要立即就医的警示症状："
+                "请立即前往急诊或拨打当地急救电话，不要等待，也不要自行处理。"
+            )
+        else:
+            summary = "请记录症状起止时间、伴随症状、既往处理和正在使用的药物，并交由医生判断。若症状加重或出现胸痛、呼吸困难、神志改变，请立即就医。"
         response = PatientIntakeResponse(
-            red_flags=[term for term in RED_FLAG_TERMS if term in normalized_features],
+            red_flags=red_flags,
+            urgency="emergency_referral" if red_flags else "routine",
             structured_questions=list(PATIENT_QUESTIONS),
-            visit_summary="请记录症状起止时间、伴随症状、既往处理和正在使用的药物，并交由医生判断。",
+            visit_summary=summary,
         )
         result = asdict(response)
         _assert_patient_schema(result)
@@ -120,7 +148,7 @@ def run_inference(payload: dict[str, Any], run_id: str = "demo001", output_dir: 
     evidence_by_segment = _load_evidence_by_segment(rd)
     context_rules = read_jsonl(rd / "inference" / "context_state_rules.jsonl")
     context_hits = _match_context(payload.get("context", {}), normalized_features, context_rules)
-    weights, support_levels, config_top_k = _load_scoring(run_id, output_dir)
+    weights, support_levels, config_top_k, min_core_coverage, min_score = _load_scoring(run_id, output_dir)
 
     results: list[dict[str, Any]] = []
     blocked: list[dict[str, Any]] = []
@@ -129,35 +157,44 @@ def run_inference(payload: dict[str, Any], run_id: str = "demo001", output_dir: 
         core = set(normalize_features(pattern.get("core_features", [])))
         common = set(normalize_features(pattern.get("common_features", [])))
         optional = set(normalize_features(pattern.get("optional_features", [])))
-        if not core:
-            # Empty-core patterns are aggregation artifacts awaiting expert
-            # review (audit queue) — they must not be recommendable.
-            excluded_needs_review.append(str(pattern.get("pattern_name")))
-            continue
-        if not (core & normalized_features):
-            continue
+        # Safety FIRST: a hard-stop contraindication matching the presented
+        # signs blocks the formula regardless of how well it would rank.
         hard_alerts, soft_alerts = split_alerts(normalized_features, pattern.get("contraindications", []))
-        evidence_cards = _evidence_cards_for_pattern(pattern, evidence_by_segment)
         if hard_alerts:
-            # T3 hard stop: the pattern is removed from recommendation, not
-            # merely down-ranked; it is surfaced separately with its alerts.
             blocked.append({
                 "pattern": pattern.get("pattern_name"),
                 "pattern_id": pattern.get("pattern_id"),
                 "support_level": "blocked",
                 "supporting_features": sorted((core | common | optional) & normalized_features),
                 "safety_alerts": hard_alerts,
-                "evidence_cards": evidence_cards,
+                "evidence_cards": _evidence_cards_for_pattern(pattern, evidence_by_segment),
             })
             continue
+        if not core:
+            # Empty-core patterns are aggregation artifacts awaiting expert
+            # review (audit queue) — they must not be recommendable.
+            excluded_needs_review.append(str(pattern.get("pattern_name")))
+            continue
+        # minimal-satisfaction gate: a core STRUCTURE must be present, not
+        # just any single trigger word
+        coverage = len(core & normalized_features) / len(core)
+        if coverage < min_core_coverage:
+            continue
+        evidence_cards = _evidence_cards_for_pattern(pattern, evidence_by_segment)
         counter_features = [item for item in pattern.get("exclusion_features", []) if normalize_features([item.get("feature", "")])[0] in normalized_features]
         score = _score_pattern(normalized_features, core, common, optional, counter_features, soft_alerts, weights)
+        supporting = sorted((core | common | optional) & normalized_features)
+        if score <= min_score or not supporting:
+            # a candidate with no positive score or no supporting evidence
+            # must never be presented as a recommendation
+            continue
         results.append({
             "pattern": pattern.get("pattern_name"),
             "pattern_id": pattern.get("pattern_id"),
             "score": round(score, 4),
+            "core_coverage": round(coverage, 4),
             "support_level": _support_level(score, support_levels),
-            "supporting_features": sorted((core | common | optional) & normalized_features),
+            "supporting_features": supporting,
             "counter_features": [item.get("feature") for item in counter_features],
             "missing_information": sorted((core | common) - normalized_features)[:5],
             "context_hits": context_hits,

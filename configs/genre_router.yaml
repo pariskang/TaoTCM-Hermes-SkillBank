@@ -1,3 +1,7 @@
+# DESIGN NOTE (descriptive, not executed by code): this file documents the
+# intended design; runtime behavior is driven by inference_config.yaml,
+# tcm_lexicon.yaml, entity_aliases.yaml, patient_safety_lexicon.yaml and
+# export_targets.yaml. Wire or delete before claiming it as a feature.
 genres:
   canonical_clause: {schema: schemas/clause_template.schema.json, annotator: clause_annotator, can_generate: [clause_template, formula_pattern_rule_candidate, contraindication_rule], cannot_generate: []}
   treatise: {schema: schemas/treatise_claim.schema.json, annotator: treatise_annotator, can_generate: [mechanism_claim, context_state_skeleton, explanation_card], cannot_generate: [formula_pattern_matching_rule]}

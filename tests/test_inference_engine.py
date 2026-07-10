@@ -13,7 +13,7 @@ def test_hard_contraindication_excludes_pattern_from_recommendation(tmp_path):
     from canon_tcm_hermes.cli import main
     xlsx=make_demo(tmp_path/"demo.xlsx"); out=tmp_path/"outputs"
     main(["build", "--input", str(xlsx), "--run-id", "r3", "--output-dir", str(out)])
-    result=run_inference({"mode":"clinician_assist","features":["脉微弱","汗出","恶风","无汗"]}, "r3", out)
+    result=run_inference({"mode":"clinician_assist","features":["脉微弱","汗出","恶风"]}, "r3", out)
     blocked = result["blocked"]
     assert blocked, "hard_stop contraindication must produce blocked entries"
     assert all(x["safety_alerts"] for x in blocked)

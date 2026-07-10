@@ -93,10 +93,28 @@ NOT_USABLE_FOR = {
     "mnemonic_misc": ["rule", "evidence_binding"],
 }
 
-FEATURE_TERMS = ["发热", "發熱", "恶寒", "惡寒", "恶风", "惡風", "无汗", "無汗", "汗出", "身痛", "头痛", "頭痛", "喘", "烦躁", "煩躁", "口渴", "脉浮紧", "脈浮緊", "脉浮缓", "脈浮緩", "脉微弱", "脈微弱"]
-FORMULAS = ["桂枝汤", "桂枝湯", "麻黄汤", "麻黃湯", "葛根汤", "葛根湯", "大青龙汤", "大青龍湯", "小青龙汤", "小青龍湯", "麻杏石甘汤", "麻杏石甘湯"]
+# Heuristic lexicon: loaded from configs/tcm_lexicon.yaml (a SIX-FORMULA
+# MVP scope — see that file's header); the built-ins below are only the
+# fallback when the config is absent.
+_DEFAULT_FEATURE_TERMS = ["发热", "發熱", "恶寒", "惡寒", "恶风", "惡風", "无汗", "無汗", "汗出", "身痛", "头痛", "頭痛", "喘", "烦躁", "煩躁", "口渴", "脉浮紧", "脈浮緊", "脉浮缓", "脈浮緩", "脉微弱", "脈微弱"]
+_DEFAULT_FORMULAS = ["桂枝汤", "桂枝湯", "麻黄汤", "麻黃湯", "葛根汤", "葛根湯", "大青龙汤", "大青龍湯", "小青龙汤", "小青龍湯", "麻杏石甘汤", "麻杏石甘湯"]
+_DEFAULT_PULSE_DIMENSIONS = {"浮": ("深浅", "浮"), "沉": ("深浅", "沉"), "迟": ("速度", "迟"), "遲": ("速度", "迟"), "数": ("速度", "数"), "數": ("速度", "数"), "虚": ("力度", "虚"), "實": ("力度", "实"), "实": ("力度", "实"), "弦": ("紧张度", "弦"), "紧": ("紧张度", "紧"), "緊": ("紧张度", "紧"), "滑": ("流利度", "滑"), "涩": ("流利度", "涩"), "澀": ("流利度", "涩")}
 
-PULSE_DIMENSION_MAP = {"浮": ("深浅", "浮"), "沉": ("深浅", "沉"), "迟": ("速度", "迟"), "遲": ("速度", "迟"), "数": ("速度", "数"), "數": ("速度", "数"), "虚": ("力度", "虚"), "實": ("力度", "实"), "实": ("力度", "实"), "弦": ("紧张度", "弦"), "紧": ("紧张度", "紧"), "緊": ("紧张度", "紧"), "滑": ("流利度", "滑"), "涩": ("流利度", "涩"), "澀": ("流利度", "涩")}
+
+def _load_tcm_lexicon() -> dict[str, Any]:
+    import yaml
+
+    path = prompts_dir().parent / "configs" / "tcm_lexicon.yaml"
+    if not path.exists():
+        return {}
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return data if isinstance(data, dict) else {}
+
+
+_LEXICON = _load_tcm_lexicon()
+FEATURE_TERMS = [str(t) for t in (_LEXICON.get("features") or _DEFAULT_FEATURE_TERMS)]
+FORMULAS = [str(f) for f in (_LEXICON.get("formulas") or _DEFAULT_FORMULAS)]
+PULSE_DIMENSION_MAP = {str(k): (str(v[0]), str(v[1])) for k, v in (_LEXICON.get("pulse_dimensions") or _DEFAULT_PULSE_DIMENSIONS).items() if isinstance(v, (list, tuple)) and len(v) == 2}
 
 
 # ---------------------------------------------------------------------------
@@ -171,9 +189,37 @@ def _find_phrase(text: str, needles: list[str]) -> str:
     return ""
 
 
+# --- formula text sectioning + dose grammar -------------------------------
+# The composition list ends at the tally marker (右X味/上X味) or at the first
+# preparation verb; parsing herb-dose pairs outside that section is what
+# produced pseudo-herbs like 右/以水/煮取二升/温服 in earlier versions.
+_TALLY_MARKER = re.compile(r"[右上][一二三四五六七八九十]+味")
+_PREPARATION_MARKERS = ["以水", "煮取", "去滓", "温服", "溫服", "顿服", "頓服", "分温", "分溫", "先煮", "内诸药", "納諸藥"]
+# lazy herb name + greedy compound numeral (七十/一百 …, 半 fractions) + unit
+_HERB_DOSE = re.compile(r"([一-鿿]{1,6}?)([一二三四五六七八九十百半]+[两兩斤钱錢分铢銖升合枚个個片把字]半?)")
+_NON_HERB_PREFIXES = ("右", "上", "以", "水", "煮", "服", "取", "去", "温", "溫", "内", "納")
+
+
+def _composition_section(text: str) -> str:
+    tally = _TALLY_MARKER.search(text)
+    if tally:
+        return text[: tally.start()]
+    cut = len(text)
+    for marker in _PREPARATION_MARKERS:
+        index = text.find(marker)
+        if index >= 0:
+            cut = min(cut, index)
+    return text[:cut]
+
+
 def _extract_herbs(text: str) -> list[dict[str, str]]:
-    names = re.findall(r"([一-鿿]{1,4})([一二三四五六七八九十半]+[两兩斤钱錢分升合枚]*)", text)
-    return [{"herb": n, "dose_original": d} for n, d in names]
+    section = _composition_section(text)
+    herbs = []
+    for name, dose in _HERB_DOSE.findall(section):
+        if name.startswith(_NON_HERB_PREFIXES):
+            continue
+        herbs.append({"herb": name, "dose_original": dose})
+    return herbs
 
 
 def _assertion_force(quote: str) -> str:
@@ -347,6 +393,14 @@ def assemble(genre: str, row: dict[str, Any], segment: dict[str, Any], quote: st
     ann["build_status"] = build_status()
     ann["annotation_meta"] = meta
     level = "E3" if genre == "commentary" else ("E5" if genre == "mnemonic_misc" else "E1")
+    if segment.get("quoted"):
+        # a canonical clause quoted inside a commentary row is a TRANSMITTED
+        # citation, not a second independent canonical witness: downgrade the
+        # evidence level and flag it so aggregation never double-counts it
+        level = "E3"
+        flags = meta.setdefault("annotation_flags", [])
+        if "transcluded_quotation" not in flags:
+            flags.append("transcluded_quotation")
     ann["evidence"] = evidence_block(row, segment, quote, level=level)
 
     if genre == "canonical_clause":

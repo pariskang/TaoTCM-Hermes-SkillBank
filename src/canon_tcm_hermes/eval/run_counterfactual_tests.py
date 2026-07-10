@@ -6,15 +6,19 @@ from typing import Any
 from canon_tcm_hermes.inference.run_inference import run_inference
 from canon_tcm_hermes.utils import atomic_write_json, run_dir
 
-PAIRS = [
-    ("有汗", "无汗"),
-    ("脉浮紧", "脉浮缓"),
-    ("烦躁有汗", "烦躁无汗"),
-    ("发汗前", "发汗后"),
-    ("喘有大热", "喘无大热"),
+# feature-list pairs: Chinese has no whitespace, so compound flips must be
+# explicit lists — "烦躁有汗".split() was silently one unmapped token
+PAIRS: list[tuple[list[str], list[str]]] = [
+    (["有汗"], ["无汗"]),
+    (["脉浮紧"], ["脉浮缓"]),
+    (["烦躁", "汗出"], ["烦躁", "无汗"]),
+    (["发汗前"], ["发汗后"]),
+    (["喘", "有大热"], ["喘", "无大热"]),
 ]
 
-BASE_FEATURES = ["发热", "恶寒", "身痛"]
+# a coherent 太阳表实 presentation that clears the core-coverage gate, so
+# flips measure the engine's sensitivity rather than the gate's floor
+BASE_FEATURES = ["发热", "头痛", "喘"]
 
 
 def _top_pattern(result: dict[str, Any]) -> str | None:
@@ -22,22 +26,23 @@ def _top_pattern(result: dict[str, Any]) -> str | None:
     return top[0].get("pattern") if top else None
 
 
-def _ranking(result: dict[str, Any]) -> list[tuple[str, str]]:
-    """Comparable ranking signature: (pattern, support_level) pairs only.
+def _ranking(result: dict[str, Any]) -> list[tuple[str, str, float]]:
+    """Comparable ranking signature: (pattern, support_level, score).
 
     Comparing whole result dicts is meaningless — they echo the input
     features, so every counterfactual pair would trivially count as
-    "changed" and inflate the pass rate to 1.0.
+    "changed". The score IS the engine's assessment, so a flip that moves
+    it counts as a real reaction even within one support level.
     """
-    return [(item.get("pattern", ""), item.get("support_level", "")) for item in result.get("top_k", [])]
+    return [(item.get("pattern", ""), item.get("support_level", ""), float(item.get("score", 0.0))) for item in result.get("top_k", [])]
 
 
 def run_counterfactual(run_id: str, output_dir: str | Path = "outputs") -> dict[str, Any]:
     cases: list[dict[str, Any]] = []
     changed_count = 0
     for left, right in PAIRS:
-        left_features = BASE_FEATURES + left.split()
-        right_features = BASE_FEATURES + right.split()
+        left_features = BASE_FEATURES + left
+        right_features = BASE_FEATURES + right
         left_result = run_inference({"mode": "clinician_assist", "features": left_features}, run_id, output_dir)
         right_result = run_inference({"mode": "clinician_assist", "features": right_features}, run_id, output_dir)
         left_top = _top_pattern(left_result)
@@ -46,7 +51,9 @@ def run_counterfactual(run_id: str, output_dir: str | Path = "outputs") -> dict[
         if changed:
             changed_count += 1
         cases.append({"a": left, "b": right, "top_a": left_top, "top_b": right_top, "ranking_a": _ranking(left_result), "ranking_b": _ranking(right_result), "changed": changed})
-    hard_payload = {"mode": "clinician_assist", "features": ["脉微弱", "汗出", "恶风", "无汗"]}
+    # a physiologically coherent probe: sweating + weak pulse + wind aversion
+    # (no contradictory 无汗+汗出 co-presence)
+    hard_payload = {"mode": "clinician_assist", "features": ["脉微弱", "汗出", "恶风"]}
     hard_result = run_inference(hard_payload, run_id, output_dir)
     blocked_patterns = {item.get("pattern") for item in hard_result.get("blocked", [])}
     top_patterns = {item.get("pattern") for item in hard_result.get("top_k", [])}

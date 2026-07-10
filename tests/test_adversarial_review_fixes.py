@@ -103,6 +103,9 @@ def test_rollback_leaves_no_mixed_package(tmp_path):
     audit = out / "runs" / "r1" / "audit"
     audit.mkdir(parents=True, exist_ok=True)
     (audit / "audit_package.json").write_text("{}", encoding="utf-8")
+    reports = out / "runs" / "r1" / "reports"
+    reports.mkdir(parents=True, exist_ok=True)
+    (reports / "validation_summary.json").write_text('{"passed": true}', encoding="utf-8")
     promote_version("r1", "expert_x", "promote", out, approved_version="1.0.0", skill_id="skill_a")
     package = build_skill("r2", "skill_a", out)
     stray = package / "references" / "current_only_artifact.jsonl"

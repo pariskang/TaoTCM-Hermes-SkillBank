@@ -1,3 +1,7 @@
+# DESIGN NOTE (descriptive, not executed by code): this file documents the
+# intended design; runtime behavior is driven by inference_config.yaml,
+# tcm_lexicon.yaml, entity_aliases.yaml, patient_safety_lexicon.yaml and
+# export_targets.yaml. Wire or delete before claiming it as a feature.
 levels:
   E1: original_text
   E2: closely_derived_canonical_claim

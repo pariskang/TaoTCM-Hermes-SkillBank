@@ -14,7 +14,7 @@ from canon_tcm_hermes.utils import atomic_write_json, read_jsonl, run_dir
 
 SYSTEMS = ["B0", "B1", "B2", "S1", "S2", "S3"]
 BASELINE_SYSTEMS = {"B0", "B1", "B2"}
-HARD_PROBE = ["脉微弱", "汗出", "恶风", "无汗"]
+HARD_PROBE = ["脉微弱", "汗出", "恶风"]
 
 PROXY_NOTE = (
     "B0/B1/B2 are deterministic local proxies (no gold-label leakage): "

@@ -27,6 +27,8 @@ pytest -q
 
 Without `LITELLM_MODEL`, every stage runs on deterministic heuristic annotators, so CI and offline runs always complete. All outputs land in `outputs/runs/<run-id>/`.
 
+**Heuristic-mode scope (stated honestly):** the offline annotators run on a **six-formula MVP lexicon** (`configs/tcm_lexicon.yaml` — 太阳病方剂群 plus ~20 feature terms). They are a deterministic demonstration of the pipeline contract, not a general classical-corpus extractor; texts outside the lexicon will under-extract. Extend the lexicon file (no code change) or use LLM mode for broader corpora.
+
 ## LLM annotation via LiteLLM (Azure example)
 
 Put these in `.env` (or the shell):
@@ -88,7 +90,8 @@ canon diff --run-id run002 --baseline run001               # delta audit vs. the
 canon export --run-id run001 [--targets claude,codex,openclaw,lobechat]
 canon all --input data/raw/data.xlsx --run-id run001 [--llm-baselines]
 canon promote --run-id run001 --skill-id shanghan_six_formula_cluster \
-      --decision promote --expert-id <id> --approved-version 1.0.0
+      --decision promote --expert-id <id> --approved-version 1.0.0 \
+      [--second-expert-id <id2>]   # REQUIRED when the audit queue holds T3 items
 canon rollback --run-id run002 --expert-id <id> --reason "..."   # restore previous stable package
 canon log-override --run-id run001 --physician-id <id> --reason "..." \
       --reason-category safety_concern --payload '{...}'          # tamper-evident override trail
@@ -110,7 +113,7 @@ Every exported skill package (`outputs/runs/<run>/skills/<skill_id>/`) carries `
 
 `canon diff` writes `reports/run_diff_report.json` — a delta audit against the baseline run: patterns added/removed/changed (safety-field changes flagged high priority), evidence added/removed/re-verified, and eval-metric regressions (hard-stop consistency, patient forbidden-output rate, citation rate). Rebuilding the audit package after a diff embeds the delta as `delta_since_baseline`, so the terminal human audit reviews what changed instead of re-reading the whole package. Promotion itself requires the audit package to exist and the approved version to be strictly greater than the current one.
 
-`promote` bumps the skill version, records lineage, and appends to the evolution log; `revise`/`reject`/`disputed` are recorded without granting stable status. No automated path can mark a skill stable.
+`promote` bumps the skill version, records lineage, and appends to the evolution log; `revise`/`reject`/`disputed` are recorded without granting stable status. No automated path can mark a skill stable. The promote decision is gated executably, not by convention: it requires a **passing** validation report, a plausible expert id, and — whenever the audit queue carries T3 hard-stop items — a **second, different expert's sign-off**. Identity verification and digital signatures remain deployment-level controls (documented in the model card), so `stable` here still means "internally consistent recorded decision", not "clinically certified".
 
 Promoted packages are protected: rebuilding a run whose skill package is already `stable` is refused (use a new run id), rebuilding an unpromoted package preserves its evolution log, and every fresh package links `lineage.parent_run` / `lineage.parent_stable_version` to the most recently promoted run of the same skill.
 
@@ -135,7 +138,9 @@ Every export carries a manifest recording the source skill version and status; e
 - Counterfactual pairs compare ranking signatures (pattern + support level), not raw payloads, so the pass rate reflects real sensitivity to flipped features.
 - Ablation baselines B0/B1/B2 are deterministic local proxies by default with **no gold-label leakage** (majority guess / lexical retrieval / structure-aware retrieval). For publication-grade studies, run `canon eval-ablation --llm-baselines` (or set `TAOTCM_LLM_BASELINES=1`) with a configured `LITELLM_MODEL`: B0 becomes a bare closed-set LLM classifier, B1 a naive-RAG prompt over lexically retrieved quotes, and B2 a graph-RAG prompt over pattern subgraphs with linked evidence. LLM-mode B1/B2 must return the evidence ids they relied on, so their hallucinated/verified citation rates are measured against the run's evidence index; metrics a system cannot produce (e.g. citation rates for the proxies, which emit no citations) are reported as `null`, not invented. Failed LLM calls fall back per-case to the deterministic proxy and are counted in `llm_fallback_cases`.
 - `canon assess --run-id <run>` writes `protocol_assessment_report.json` listing remaining gaps (micro-gold calibration, expert audit, etc.). The system is not claimed stable-grade by default.
-- Publication-grade reporting (see `docs/METHODS.md` for the research grounding): the ablation report carries bootstrap 95% CIs, paired permutation tests with Holm–Bonferroni correction, and a risk–coverage/AURC selective-prediction block; `canon conformal` produces distribution-free prediction sets with explicit abstention (vacuous small-n calibrations are reported as vacuous); `canon eval-attribution` tests citation *faithfulness* by intervention (feature necessity + evidence grounding), not just citation correctness; `canon calibrate-router` measures router quality against human micro-gold (Po + Cohen's κ, exact/relaxed span F1, κ≥0.8 gate); `canon model-card` renders a TRIPOD-LLM-style model card from run artifacts.
+- Research-grade evaluation *instrumentation* (see `docs/METHODS.md` for grounding and limits — this is tooling for rigorous studies, **not** clinical validation, and none of it should be read as "publication-grade results" on the demo corpus): the ablation report carries bootstrap 95% CIs, paired permutation tests with Holm–Bonferroni correction, and a risk–coverage/AURC selective-prediction block; `canon conformal` produces distribution-free prediction sets with explicit abstention (vacuous small-n calibrations are reported as vacuous); `canon eval-attribution` tests citation *faithfulness* by intervention (feature necessity + evidence grounding), not just citation correctness; `canon calibrate-router` measures router quality against human micro-gold (Po + Cohen's κ, exact/relaxed span F1, κ≥0.8 gate); `canon model-card` renders a TRIPOD-LLM-style model card from run artifacts.
+- Known evaluation circularity, stated plainly: demo eval cases derive expected patterns from the prescriptions in the SAME corpus that built the knowledge (`gold_answer_scope: physician_judgment_only_not_objective_truth`); metrics therefore measure internal consistency, not clinical accuracy. Publication studies need held-out corpora, blinded multi-expert gold sets, and external validation (docs/METHODS.md lists the full gap inventory).
+- Citation verification is decomposed honestly: `source_integrity` and `span_alignment` (quote exists, hash and span verify) are measured by the citation validator; `claim_entailment` (does the quote SUPPORT the conclusion) is a separate property measured by the attribution module; `source_independence` reports the unique-quote rate so transcluded duplicates cannot inflate support.
 
 ## Safety
 

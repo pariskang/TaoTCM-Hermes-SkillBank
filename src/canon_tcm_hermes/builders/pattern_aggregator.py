@@ -19,6 +19,19 @@ def build_patterns(run_id: str, output_dir: str | Path = "outputs") -> list[dict
     SAFETY_SUBTYPES = {"contraindication", "mistreatment_consequence"}
     positive_clauses = [c for c in clauses if c.get("clause_subtype") not in SAFETY_SUBTYPES]
     safety_clauses = [c for c in clauses if c.get("clause_subtype") in SAFETY_SUBTYPES]
+    # A clause quoted inside a commentary is a transmitted citation of the
+    # same canonical text (源 vs 载体): it corroborates but must not be
+    # counted as an independent canonical witness.
+    def _is_transclusion(clause: dict[str, Any]) -> bool:
+        return "transcluded_quotation" in ((clause.get("annotation_meta") or {}).get("annotation_flags") or [])
+
+    transcluded = [c for c in positive_clauses if _is_transclusion(c)]
+    positive_clauses = [c for c in positive_clauses if not _is_transclusion(c)]
+    transcluded_by_formula: dict[str, list[str]] = defaultdict(list)
+    for clause in transcluded:
+        formula = (clause.get("conclusion") or {}).get("formula")
+        if formula:
+            transcluded_by_formula[formula].append(clause.get("segment_id", ""))
     by_formula: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for clause in positive_clauses:
         formula = (clause.get("conclusion") or {}).get("formula")
@@ -28,13 +41,12 @@ def build_patterns(run_id: str, output_dir: str | Path = "outputs") -> list[dict
     patterns: list[dict[str, Any]] = []
     for formula, items in by_formula.items():
         counts = Counter(feature for clause in items for feature in normalize_features(clause.get("features_present", [])))
-        # core = features attested by every aggregated clause; absence-marked
-        # features (features_absent counterpart) stay core-eligible too.
+        # core = features attested by every independent canonical clause;
+        # absence-marked features stay core-eligible too. No forced
+        # promotion: a formula with no all-clause feature has no core and
+        # goes to expert review instead of being given a fabricated one.
         core = sorted(feature for feature, count in counts.items() if count == len(items))
         common = sorted(feature for feature in counts if feature not in core)
-        if not core and common:
-            most_common = counts.most_common(1)[0][0]
-            core, common = [most_common], [f for f in common if f != most_common]
         evidence_segments = [clause["segment_id"] for clause in items]
         pattern_name = f"{formula}证"
         pattern = {
@@ -51,9 +63,10 @@ def build_patterns(run_id: str, output_dir: str | Path = "outputs") -> list[dict
             "aggregated_from": [clause["source_id"] for clause in items],
             "commentary_support": _commentary_support(commentary, formula),
             "case_corroboration_count": _case_corroboration_count(cases, formula),
+            "transcluded_citations": transcluded_by_formula.get(formula, []),
             "aggregation_decisions": [{
                 "decision": "从 canonical_clause 聚合核心方证特征",
-                "basis": "方证规则只由条文体产生；方书提供档案，医案只作实例佐证，歌诀只作教学校验。",
+                "basis": "方证规则只由条文体产生；方书提供档案，医案只作实例佐证，歌诀只作教学校验；注家转引的条文只作佐证（transcluded_citations），不计为独立经典证据。",
                 "auto_generated": True,
                 "needs_audit": True,
             }],

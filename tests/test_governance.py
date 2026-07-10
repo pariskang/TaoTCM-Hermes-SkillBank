@@ -17,8 +17,12 @@ def test_promote_evolves_skill_package(tmp_path):
     assert before["status"] == "auto_generated_requires_audit"
     assert before["version"] == "0.1.0"
 
-    record = promote_version("r_gov", "expert_x", "promote", out, approved_version="1.2.0", skill_id="shanghan_six_formula_cluster", reason="ok")
+    # the audit queue carries T3 hard-stop items -> dual sign-off required
+    with pytest.raises(ValueError, match="second expert"):
+        promote_version("r_gov", "expert_x", "promote", out, approved_version="1.2.0", skill_id="shanghan_six_formula_cluster", reason="ok")
+    record = promote_version("r_gov", "expert_x", "promote", out, approved_version="1.2.0", skill_id="shanghan_six_formula_cluster", reason="ok", second_expert_id="expert_y")
     assert record["stable"] is True
+    assert record["second_expert_id"] == "expert_y"
     after = yaml.safe_load(skill_yaml.read_text(encoding="utf-8"))
     assert after["status"] == "stable"
     assert after["version"] == "1.2.0"
@@ -46,6 +50,9 @@ def _stub_audit_package(out, run_id):
     audit = out / "runs" / run_id / "audit"
     audit.mkdir(parents=True, exist_ok=True)
     (audit / "audit_package.json").write_text("{}", encoding="utf-8")
+    reports = out / "runs" / run_id / "reports"
+    reports.mkdir(parents=True, exist_ok=True)
+    (reports / "validation_summary.json").write_text('{"passed": true}', encoding="utf-8")
 
 
 def test_build_skill_refuses_to_overwrite_stable_package(tmp_path):

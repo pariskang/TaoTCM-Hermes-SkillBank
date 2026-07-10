@@ -19,6 +19,13 @@ def build_inference_config(run_id: str, skill_id: str = "shanghan_six_formula_cl
             },
             # ordinal support-level cut points on the weighted score
             "support_levels": {"high": 2.0, "medium": 1.0},
+            # minimal-satisfaction gate: fraction of core features that must
+            # be present before a pattern may be ranked ("any single hit" is
+            # not a core structure)
+            "min_core_coverage": 0.5,
+            # candidates must have positive score and at least one
+            # supporting feature to enter top_k
+            "min_score_exclusive": 0.0,
             # documentation intervals for expert review of the weight bands
             "core_feature": [0.75, 1.0],
             "common_feature": [0.40, 0.75],

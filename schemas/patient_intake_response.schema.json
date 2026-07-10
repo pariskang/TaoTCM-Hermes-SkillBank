@@ -5,10 +5,11 @@
   "description": "The ONLY shape a patient-facing response may take. additionalProperties is false so pattern/formula/dosage content cannot ride along on extra keys.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["mode", "red_flags", "structured_questions", "visit_summary", "forbidden_outputs_checked"],
+  "required": ["mode", "red_flags", "urgency", "structured_questions", "visit_summary", "forbidden_outputs_checked"],
   "properties": {
     "mode": {"const": "patient_intake"},
     "red_flags": {"type": "array", "items": {"type": "string"}},
+    "urgency": {"enum": ["routine", "emergency_referral"]},
     "structured_questions": {"type": "array", "items": {"type": "string"}, "minItems": 1},
     "visit_summary": {"type": "string", "minLength": 1},
     "forbidden_outputs_checked": {"const": true}

@@ -63,7 +63,15 @@ Grounding: TRIPOD-LLM reporting statement (Nature Medicine 2025); Model Cards (M
 
 ## Known gaps this document does not paper over
 
+Wording rule adopted from external review: this repository provides
+*research-grade evaluation instrumentation*. Do not describe it as
+"publication-grade results", "clinical-grade", or use `stable` to imply
+clinical certification.
+
 - The demo corpus is tiny; every statistical artifact says so in its own caveat field.
+- **Evaluation circularity**: demo eval labels derive from prescriptions in the same corpus that built the knowledge; metrics measure internal consistency, not clinical accuracy. External held-out corpora (held out by book/physician), blinded multi-expert gold sets and adjudication are prerequisites for any effectiveness claim.
 - Conformal calibration and evaluation currently use the same cases (in-sample); split them for test-set claims.
 - Micro-gold router calibration needs 100–150 human-adjudicated rows (protocol requirement) — the harness is ready, the gold data is not.
 - LLM-annotation debiasing for corpus-level statistics (PPI / design-based semi-supervised inference, Science 2023) is a recommended next step once a human micro-gold subset exists.
+- Regulatory-alignment inventory still open (DECIDE-AI / FUTURE-AI / IMDRF GMLP): subgroup & fairness analysis, robustness and out-of-distribution testing, prompt-injection and corpus-poisoning red-teaming, clinician usability studies, human-AI error analysis, prospective silent validation, post-deployment drift monitoring, safety-incident reporting, access control and cryptographic signing of audit decisions, privacy/data-governance threat model.
+- Aggregation model is deliberately simple (independent-witness frequency after transclusion exclusion); weighted evidence, version lineage, conditional logic (AND/OR/NOT/temporal), school-of-thought coexistence and expert agreement modeling are P1 design work, not implemented claims.

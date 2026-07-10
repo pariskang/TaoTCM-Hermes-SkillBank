@@ -42,6 +42,9 @@ def _stub_audit(out, run_id):
     audit = out / "runs" / run_id / "audit"
     audit.mkdir(parents=True, exist_ok=True)
     (audit / "audit_package.json").write_text("{}", encoding="utf-8")
+    reports = out / "runs" / run_id / "reports"
+    reports.mkdir(parents=True, exist_ok=True)
+    (reports / "validation_summary.json").write_text('{"passed": true}', encoding="utf-8")
 
 
 def test_rollback_restores_previous_stable_package(tmp_path):

@@ -56,7 +56,7 @@ def test_inference_config_drives_scoring(demo_run):
 
 def test_patient_response_is_strongly_typed():
     out = run_inference({"mode": "patient_intake", "features": ["无汗", "胸痛"]})
-    assert set(out) == {"mode", "red_flags", "structured_questions", "visit_summary", "forbidden_outputs_checked"}
+    assert set(out) == {"mode", "red_flags", "urgency", "structured_questions", "visit_summary", "forbidden_outputs_checked"}
     assert schema_errors(out, "patient_intake_response.schema.json") == []
 
 

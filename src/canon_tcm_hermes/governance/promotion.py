@@ -5,7 +5,9 @@ from typing import Any
 
 import yaml
 
-from canon_tcm_hermes.utils import atomic_write_json, atomic_write_text, now_iso, run_dir
+import json
+
+from canon_tcm_hermes.utils import atomic_write_json, atomic_write_text, now_iso, read_jsonl, run_dir
 
 
 def _version_tuple(version: str) -> tuple[int, ...]:
@@ -13,6 +15,30 @@ def _version_tuple(version: str) -> tuple[int, ...]:
         return tuple(int(part) for part in str(version).strip().split("."))
     except ValueError as exc:
         raise ValueError(f"version must be numeric dotted form (e.g. 1.2.0), got: {version!r}") from exc
+
+
+def _assert_promotion_gates(rd: Path, expert_id: str, second_expert_id: str) -> None:
+    """Executable gates for the promote decision — not process conventions.
+
+    A promote requires: a passing validation report, a plausible expert id,
+    and dual sign-off when the audit queue carries T3 (hard-stop) items.
+    Identity verification and digital signatures are deployment-level
+    controls documented in the model card; these gates make the recorded
+    decision at least internally consistent with the run's own evidence.
+    """
+    validation_path = rd / "reports" / "validation_summary.json"
+    if not validation_path.exists():
+        raise FileNotFoundError(f"validation report not found: {validation_path}; run `canon validate` before promoting")
+    if not json.loads(validation_path.read_text(encoding="utf-8")).get("passed"):
+        raise ValueError("promotion blocked: pipeline validation did not pass (reports/validation_summary.json)")
+    if len(str(expert_id).strip()) < 2:
+        raise ValueError("promotion blocked: expert_id must be a real identifier")
+    t3_items = [item for item in read_jsonl(rd / "audit" / "audit_queue.jsonl") if item.get("risk_tier") == "T3"]
+    if t3_items:
+        if len(str(second_expert_id).strip()) < 2:
+            raise ValueError(f"promotion blocked: audit queue holds {len(t3_items)} T3 item(s); a second expert sign-off (--second-expert-id) is required")
+        if str(second_expert_id).strip() == str(expert_id).strip():
+            raise ValueError("promotion blocked: the second expert must be a different person")
 
 
 def promote_version(
@@ -23,6 +49,7 @@ def promote_version(
     approved_version: str = "1.0.0",
     skill_id: str | None = None,
     reason: str = "",
+    second_expert_id: str = "",
 ) -> dict[str, Any]:
     """Record a terminal human-audit decision and, on promote, evolve the skill.
 
@@ -40,6 +67,8 @@ def promote_version(
             f"audit package not found: {audit_package}; a terminal audit decision must "
             "review the audit package — run `canon build-audit` (or `canon all`) first"
         )
+    if decision == "promote":
+        _assert_promotion_gates(rd, expert_id, second_expert_id)
     meta: dict[str, Any] | None = None
     skill_yaml: Path | None = None
     if skill_id:
@@ -55,6 +84,7 @@ def promote_version(
         "run_id": run_id,
         "audit_decision": decision,
         "expert_id": expert_id,
+        "second_expert_id": second_expert_id,
         "reason": reason,
         "approved_version": approved_version if decision == "promote" else "",
         "stable": decision == "promote",

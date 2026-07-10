@@ -1,0 +1,60 @@
+# Heuristic-mode lexicon for offline deterministic annotation.
+#
+# SCOPE HONESTY: this is a SIX-FORMULA MVP lexicon (太阳病方剂群 demo).
+# The offline heuristic mode extracts only what is listed here — it is NOT
+# a general-purpose classical-corpus extractor. Broader corpora need
+# either an expanded lexicon (edit this file; no code change required) or
+# LLM annotation mode (LITELLM_MODEL), and ultimately an expert-built
+# ontology (see docs/METHODS.md known gaps).
+features:
+  - 发热
+  - 發熱
+  - 恶寒
+  - 惡寒
+  - 恶风
+  - 惡風
+  - 无汗
+  - 無汗
+  - 汗出
+  - 身痛
+  - 头痛
+  - 頭痛
+  - 喘
+  - 烦躁
+  - 煩躁
+  - 口渴
+  - 脉浮紧
+  - 脈浮緊
+  - 脉浮缓
+  - 脈浮緩
+  - 脉微弱
+  - 脈微弱
+formulas:
+  - 桂枝汤
+  - 桂枝湯
+  - 麻黄汤
+  - 麻黃湯
+  - 葛根汤
+  - 葛根湯
+  - 大青龙汤
+  - 大青龍湯
+  - 小青龙汤
+  - 小青龍湯
+  - 麻杏石甘汤
+  - 麻杏石甘湯
+pulse_dimensions:
+  浮: [深浅, 浮]
+  沉: [深浅, 沉]
+  迟: [速度, 迟]
+  遲: [速度, 迟]
+  数: [速度, 数]
+  數: [速度, 数]
+  虚: [力度, 虚]
+  實: [力度, 实]
+  实: [力度, 实]
+  弦: [紧张度, 弦]
+  紧: [紧张度, 紧]
+  緊: [紧张度, 紧]
+  滑: [流利度, 滑]
+  涩: [流利度, 涩]
+  澀: [流利度, 涩]

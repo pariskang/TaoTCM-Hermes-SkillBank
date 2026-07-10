@@ -63,6 +63,7 @@ def main(argv: list[str] | None = None) -> None:
         if name == "promote":
             p.add_argument("--decision", required=True, choices=["promote", "revise", "reject", "disputed"])
             p.add_argument("--expert-id", required=True)
+            p.add_argument("--second-expert-id", default="", help="required when the audit queue carries T3 items (dual sign-off)")
             p.add_argument("--approved-version", default="1.0.0")
             p.add_argument("--reason", default="")
         if name == "diff":
@@ -194,6 +195,7 @@ def main(argv: list[str] | None = None) -> None:
         record = promote_version(
             args.run_id, args.expert_id, args.decision, args.output_dir,
             approved_version=args.approved_version, skill_id=args.skill_id, reason=args.reason,
+            second_expert_id=args.second_expert_id,
         )
         print(record)
         return
